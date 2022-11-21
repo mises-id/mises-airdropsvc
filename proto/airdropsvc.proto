@@ -1,0 +1,329 @@
+// In general, while you can use proto2 (the current default protocol buffers
+// version), we recommend that you use proto3 with gRPC as it lets you use the
+// full range of gRPC-supported languages, as well as avoiding compatibility
+// issues with proto2 clients talking to proto3 servers and vice versa.
+syntax = "proto3";
+
+// The package name determines the name of the directories that truss creates
+// for `package echo;` truss will create the directory "echo-service".
+package airdropsvc;
+
+import "github.com/metaverse/truss/deftree/googlethirdparty/annotations.proto";
+
+service Airdropsvc {
+
+    rpc Test (TestRequest) returns (TestResponse) {
+        option (google.api.http) = {
+          // All fields (In) are query parameters of the http request unless otherwise specified
+          get: "/test"
+    
+          additional_bindings {
+            // Trailing slashes are different routes
+            get: "/test/"
+          }
+        };
+      }
+      rpc GetTwitterAuthUrl (GetTwitterAuthUrlRequest) returns (GetTwitterAuthUrlResponse) {
+        option (google.api.http) = {
+          // All fields (In) are query parameters of the http request unless otherwise specified
+          get: "/twitter/auth_url"
+    
+          additional_bindings {
+            // Trailing slashes are different routes
+            get: "/twitter/auth_url/"
+          }
+        };
+      }
+      rpc GetAirdropInfo (GetAirdropInfoRequest) returns (GetAirdropInfoResponse) {
+        option (google.api.http) = {
+          // All fields (In) are query parameters of the http request unless otherwise specified
+          get: "/airdrop/info"
+    
+          additional_bindings {
+            // Trailing slashes are different routes
+            get: "/airdrop/info/"
+          }
+        };
+      }
+      rpc TwitterCallback (TwitterCallbackRequest) returns (TwitterCallbackResponse) {
+        option (google.api.http) = {
+          // All fields (In) are query parameters of the http request unless otherwise specified
+          get: "/twitter/callback"
+    
+          additional_bindings {
+            // Trailing slashes are different routes
+            get: "/twitter/callback/"
+          }
+        };
+      }
+      rpc TwitterFollow (TwitterFollowRequest) returns (TwitterFollowResponse) {
+        option (google.api.http) = {
+          // All fields (In) are query parameters of the http request unless otherwise specified
+          get: "/twitter/follow"
+    
+          additional_bindings {
+            // Trailing slashes are different routes
+            get: "/twitter/follow/"
+          }
+        };
+      }
+      rpc LookupTwitter (LookupTwitterRequest) returns (LookupTwitterResponse) {
+        option (google.api.http) = {
+          // All fields (In) are query parameters of the http request unless otherwise specified
+          get: "/twitter/lookup"
+    
+          additional_bindings {
+            // Trailing slashes are different routes
+            get: "/twitter/lookup/"
+          }
+        };
+      }
+      rpc SendTweet (SendTweetRequest) returns (SendTweetResponse) {
+        option (google.api.http) = {
+          // All fields (In) are query parameters of the http request unless otherwise specified
+          get: "/twitter/send_tweet"
+    
+          additional_bindings {
+            // Trailing slashes are different routes
+            get: "/twitter/send_tweet/"
+          }
+        };
+      }
+      rpc CheckTwitterUser (CheckTwitterUserRequest) returns (CheckTwitterUserResponse) {
+        option (google.api.http) = {
+          // All fields (In) are query parameters of the http request unless otherwise specified
+          get: "/twitter/check_user"
+    
+          additional_bindings {
+            // Trailing slashes are different routes
+            get: "/twitter/check_user/"
+          }
+        };
+      }
+      rpc ChannelInfo (ChannelInfoRequest) returns (ChannelInfoResponse) {
+        option (google.api.http) = {
+          // All fields (In) are query parameters of the http request unless otherwise specified
+          get: "/channel/info"
+    
+          additional_bindings {
+            // Trailing slashes are different routes
+            get: "/channel/info/"
+          }
+        };
+      }
+      rpc PageChannelUser (PageChannelUserRequest) returns (PageChannelUserResponse) {
+        option (google.api.http) = {
+          // All fields (In) are query parameters of the http request unless otherwise specified
+          get: "/channel_user/page"
+    
+          additional_bindings {
+            // Trailing slashes are different routes
+            get: "/channel_user/page/"
+          }
+        };
+      }
+      rpc GetChannelUser (GetChannelUserRequest) returns (GetChannelUserResponse) {
+        option (google.api.http) = {
+          // All fields (In) are query parameters of the http request unless otherwise specified
+          get: "/channel_user"
+    
+          additional_bindings {
+            // Trailing slashes are different routes
+            get: "/channel_user/"
+          }
+        };
+      }
+      rpc AirdropTwitter (AirdropTwitterRequest) returns (AirdropTwitterResponse) {
+        option (google.api.http) = {
+          // All fields (In) are query parameters of the http request unless otherwise specified
+          get: "/airdrop/twitter"
+    
+          additional_bindings {
+            // Trailing slashes are different routes
+            get: "/airdrop/twitter/"
+          }
+        };
+      }
+      rpc AirdropChannel (AirdropChannelRequest) returns (AirdropChannelResponse) {
+        option (google.api.http) = {
+          // All fields (In) are query parameters of the http request unless otherwise specified
+          get: "/airdrop/channel"
+    
+          additional_bindings {
+            // Trailing slashes are different routes
+            get: "/airdrop/channel/"
+          }
+        };
+      }
+}
+
+message TestRequest {
+
+}
+message TestResponse {
+
+}
+message UserAvatar {
+    string small = 1;
+      string		medium = 2;
+    string	large = 3;
+    string nft_asset_id = 4;
+  }
+message UserInfo {
+    uint64 uid = 1;
+    string username = 2;
+    string misesid = 3;
+    string gender = 4;
+    string mobile = 5;
+    string email = 6;
+    string address = 7;
+    string avatar = 8;
+    bool is_followed = 9;
+    bool is_blocked = 10;
+    uint32 followings_count = 11;
+    uint32 fans_count = 12;
+    uint32 liked_count = 13;
+    uint32 new_fans_count = 14;
+    UserAvatar avatar_url = 15;
+    bool is_airdropped = 16;
+    bool airdrop_status = 17;
+    bool is_logined = 18;
+    string help_misesid = 19;
+    string intro = 20;
+  }
+message PageQuick {
+    uint64 limit = 1;
+    string next_id = 2;
+    uint64 total = 3;
+  }
+message Page {
+    uint64 total_records = 1;
+    uint64 page_size = 2;
+    uint64 page_num = 3;
+    uint64 total_page = 4;
+}
+
+message AirdropTwitterRequest {
+  string misesid = 1;
+}
+message AirdropTwitterResponse {
+  
+}
+message AirdropChannelRequest {
+ 
+}
+message AirdropChannelResponse {
+  
+}
+message TwitterFollowRequest {
+  
+}
+message TwitterFollowResponse {
+  uint64 code = 1;
+}
+message SendTweetRequest {
+  
+}
+message SendTweetResponse {
+  uint64 code = 1;
+}
+message CheckTwitterUserRequest {
+  
+}
+message CheckTwitterUserResponse {
+  uint64 code = 1;
+}
+message LookupTwitterRequest {
+  
+}
+message LookupTwitterResponse {
+  uint64 code = 1;
+}
+message ChannelInfoRequest {
+  string misesid = 1;
+  string type = 2;
+  string medium = 3;
+}
+message ChannelInfoResponse {
+  uint64 code = 1;
+  string url = 2;
+  uint64 total_channel_user = 3;
+  float airdrop_amount = 4;
+  string medium_url = 5;
+  string ios_link = 6;
+  string ios_medium_link = 7;
+}
+
+message GetChannelUserRequest {
+  string misesid = 1;
+}
+message PageChannelUserResponse {
+    uint64 code = 1;
+    repeated ChannelUserInfo channel_users = 2;
+    Page paginator = 3;
+  }
+  message PageChannelUserRequest {
+    string misesid = 1;
+    Page paginator = 2;
+  }
+  message ChannelUserInfo {
+    string id = 1;
+    string channel_id = 2;
+    int32 valid_state = 3;
+    uint64 amount = 4;
+    string tx_id = 5;
+    UserInfo user = 6;
+    int32 airdrop_state = 7;
+    uint64 airdrop_time = 8;
+    uint64 created_at = 9;
+    uint64 channel_uid = 10;
+    string channel_misesid = 11;
+  }
+message GetChannelUserResponse {
+  uint64 code = 1;
+  ChannelUserInfo chanel_user = 2;
+}
+message GetTwitterAuthUrlRequest{
+    uint64 current_uid = 1;
+  }
+  message GetTwitterAuthUrlResponse{
+    uint64 code = 1;
+    string url = 2;
+  }
+  
+  message UserTwitterAuth {
+    string twitter_user_id = 1;
+    string name = 2;
+    string username = 3;
+    uint64 followers_count = 4;
+    uint64 tweet_count = 5;
+    uint64 twitter_created_at = 6;
+    float amount = 7;
+    uint64 created_at = 8;
+    string misesid = 9;
+  }
+  message Airdrop {
+    float coin = 1;
+    uint64 created_at = 2;
+    uint64 finish_at = 3;
+    string status = 4;
+  }
+  
+  message GetAirdropInfoRequest{
+    uint64 current_uid = 1;
+  }
+  message GetAirdropInfoResponse{
+    uint64 code = 1;
+    UserTwitterAuth twitter = 2;
+    Airdrop airdrop = 3;
+  
+  }
+  message TwitterCallbackRequest{
+    uint64 current_uid = 1;
+    string oauth_token = 2;
+    string oauth_verifier = 3;
+  }
+  message TwitterCallbackResponse{
+    uint64 code = 1;
+    string url = 2;
+  }
