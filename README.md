@@ -1,1 +1,1 @@
-# mises-airdrop
+# mises-airdropsvc
