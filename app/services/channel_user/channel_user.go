@@ -39,7 +39,7 @@ func AirdropChannel(ctx context.Context) {
 	go airdropTx(ctx)
 	select {
 	case <-airdropStop:
-		fmt.Printf("[%s] Channel Airdrop Start\n", time.Now().Local().String())
+		fmt.Printf("[%s] Channel Airdrop End\n", time.Now().Local().String())
 	}
 	return
 }
@@ -53,7 +53,6 @@ func airdropToStop() {
 func airdropTx(ctx context.Context) {
 	airdrops, err := getChannelAirdropList(ctx)
 	if err != nil {
-		fmt.Printf("[%s] Channel Airdrop GetChannelAirdropList Error:%s\n", time.Now().Local().String(), err.Error())
 		airdropToStop()
 		return
 	}
@@ -63,6 +62,7 @@ func airdropTx(ctx context.Context) {
 	}
 	for _, airdrop := range airdrops {
 		if err := airdropRun(ctx, airdrop); err != nil {
+			fmt.Printf("[%s] Channel Airdrop Run Error:%s \n", time.Now().Local().String(), err.Error())
 			airdropToStop()
 			return
 		}
@@ -73,7 +73,6 @@ func airdropTx(ctx context.Context) {
 func airdropTxOne(ctx context.Context) {
 	airdrop, err := getChannelAirdrop(ctx)
 	if err != nil {
-		fmt.Printf("[%s] Airdrop Run One GetChannelAirdrop Error:%s \n", time.Now().Local().String(), err.Error())
 		airdropToStop()
 		return
 	}
@@ -109,7 +108,7 @@ func getChannelAirdrop(ctx context.Context) (*models.ChannelUser, error) {
 
 func airdropRun(ctx context.Context, channel_user *models.ChannelUser) error {
 	if totalAirdropNum <= 0 {
-		return errors.New("too many airdrop num")
+		return errors.New("run end")
 	}
 	misesid := channel_user.ChannelMisesid
 	amount := channel_user.Amount

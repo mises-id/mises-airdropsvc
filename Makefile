@@ -6,7 +6,7 @@ build:
 upload:
 	scp ./main mises_alpha:/apps/mises-airdropsvc/
 replace:
-	ssh mises_alpha "mv /apps/mises-airdropsvc/main /apps/mises-airdropsvc/airdropsvc"
+	ssh mises_alpha "mv /apps/mises-airdropsvc/main /apps/mises-airdropsvc/mises-airdropsvc"
 restart:
 	ssh mises_alpha "sudo supervisorctl restart airdropsvc"
 deploy: build \
@@ -25,7 +25,7 @@ test:
 upload-backup:
 	scp ./main mises_backup:/apps/mises-airdropsvc/
 replace-backup:
-	ssh mises_backup "mv /apps/mises-airdropsvc/main /apps/mises-airdropsvc/airdropsvc"
+	ssh mises_backup "mv /apps/mises-airdropsvc/main /apps/mises-airdropsvc/mises-airdropsvc"
 restart-backup:
 	ssh mises_backup "sudo supervisorctl restart airdropsvc"
 deploy-backup: build \

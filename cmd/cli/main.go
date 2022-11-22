@@ -10,6 +10,7 @@ import (
 	_ "github.com/mises-id/mises-airdropsvc/config"
 	"github.com/mises-id/mises-airdropsvc/lib/airdrop"
 	"github.com/mises-id/mises-airdropsvc/lib/db"
+	socdb "github.com/mises-id/sns-socialsvc/lib/db"
 
 	// This Service
 	"github.com/mises-id/mises-airdropsvc/handlers"
@@ -22,9 +23,11 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()
-	fmt.Println("setup mongo...")
+	fmt.Println("airdropsvc setup mongo...")
 	db.SetupMongo(ctx)
-	fmt.Println("setup airdropsvc...")
+	fmt.Println("socialsvc setup mongo...")
+	socdb.SetupMongo(ctx)
+	fmt.Println("airdropsvc setup airdrop client...")
 	airdrop.SetAirdropClient()
 	cfg := server.DefaultConfig
 	cfg = handlers.SetConfig(cfg)

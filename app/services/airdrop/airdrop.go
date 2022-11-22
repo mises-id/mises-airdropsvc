@@ -108,7 +108,7 @@ func getAirdrop(ctx context.Context) (*models.Airdrop, error) {
 
 func airdropRun(ctx context.Context, airdrop *models.Airdrop) error {
 	if totalAirdropNum <= 0 {
-		return errors.New("too many airdrop num")
+		return errors.New("run end")
 	}
 	fmt.Printf("[%s] Airdrop Run num:%d,misesid:%s,coin:%d\n", time.Now().Local().String(), totalAirdropNum, airdrop.Misesid, airdrop.Coin)
 	err := airdropLib.AirdropClient.RunAsync(airdrop.Misesid, "", airdrop.Coin)

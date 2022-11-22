@@ -2,7 +2,7 @@ package config
 
 import (
 	"github.com/mises-id/mises-airdropsvc/config/env"
-	"github.com/mises-id/mises-airdropsvc/lib/storage"
+	"github.com/mises-id/sns-socialsvc/lib/storage"
 )
 
 func init() {

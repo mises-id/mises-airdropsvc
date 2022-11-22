@@ -84,7 +84,7 @@ func runLookupTwitterUser(ctx context.Context) error {
 		valid_state = enum.UserValidFailed
 		if channel_user != nil && (channel_user.ValidState == enum.UserValidDefalut || channel_user.ValidState == enum.UserValidFailed) {
 			do_channeluser = true
-			fmt.Printf("RunLookupTwitterUser DoChannelUser True [%s] UID[%d]\n", time.Now().Local().String(), uid)
+			fmt.Printf("[%s] RunLookupTwitterUser DoChannelUser True UID[%d]\n", time.Now().Local().String(), uid)
 		}
 		//check
 		followers_count := user_twitter.TwitterUser.FollowersCount
@@ -125,9 +125,9 @@ func runLookupTwitterUser(ctx context.Context) error {
 		//do channel_user
 		if do_channeluser {
 			if err := channel_user.UpdateCreateAirdrop(ctx, valid_state, amount); err != nil {
-				fmt.Printf("RunLookupTwitterUser UpdateChannelUser [%s] UID[%d] Error:%s\n", time.Now().Local().String(), uid, err.Error())
+				fmt.Printf("[%s] RunLookupTwitterUser UpdateChannelUser UID[%d] Error:%s\n", time.Now().Local().String(), uid, err.Error())
 			} else {
-				fmt.Printf("RunLookupTwitterUser UpdateChannelUser [%s] UID[%d] Success\n", time.Now().Local().String(), uid)
+				fmt.Printf("[%s] RunLookupTwitterUser UpdateChannelUser UID[%d] Success\n", time.Now().Local().String(), uid)
 			}
 		}
 	}
@@ -162,7 +162,7 @@ func runSendTweet(ctx context.Context) error {
 		uid := user_twitter.UID
 		user_twitter.SendTweeState = 2
 		if err := reTweet(ctx, user_twitter); err != nil {
-			fmt.Printf("[%s]uid[%d] Send Tweet Error:%s \n", time.Now().Local().String(), uid, err.Error())
+			fmt.Printf("[%s] uid[%d] Send Tweet Error:%s \n", time.Now().Local().String(), uid, err.Error())
 			user_twitter.SendTweeState = 3
 			if strings.Contains(err.Error(), "httpStatusCode=401") {
 				user_twitter.SendTweeState = 4
@@ -177,7 +177,7 @@ func runSendTweet(ctx context.Context) error {
 			user_twitter.LikeTweeState = 4
 		} else {
 			if err := likeTweet(ctx, user_twitter); err != nil {
-				fmt.Printf("[%s]uid[%d] Like Tweet Error:%s \n", time.Now().Local().String(), uid, err.Error())
+				fmt.Printf("[%s] uid[%d] Like Tweet Error:%s \n", time.Now().Local().String(), uid, err.Error())
 				user_twitter.LikeTweeState = 3
 				if strings.Contains(err.Error(), "httpStatusCode=401") {
 					user_twitter.LikeTweeState = 4
@@ -265,7 +265,6 @@ func followerSortOrIDAsc() string {
 	if m == 0 {
 		sort = "id_asc"
 	}
-	sort = "id_asc"
 	return sort
 }
 
@@ -353,7 +352,7 @@ func runCheckTwitterUser(ctx context.Context) error {
 		valid_state := enum.UserValidFailed
 		if channel_user != nil && (channel_user.ValidState == enum.UserValidDefalut || channel_user.ValidState == enum.UserValidFailed) {
 			do_channeluser = true
-			fmt.Printf("PlanCheckTwitterUser DoChannelUser True [%s] UID[%d]\n", time.Now().Local().String(), uid)
+			fmt.Printf("[%s] PlanCheckTwitterUser DoChannelUser True UID[%d]\n", time.Now().Local().String(), uid)
 		}
 		airdropData, err := createAirdrop(ctx, user_twitter)
 		if err != nil {
@@ -379,9 +378,9 @@ func runCheckTwitterUser(ctx context.Context) error {
 		//do channel_user
 		if do_channeluser {
 			if err := channel_user.UpdateCreateAirdrop(ctx, valid_state, amount); err != nil {
-				fmt.Printf("PlanCheckTwitterUser UpdateChannelUser [%s] UID[%d] Error:%s\n", time.Now().Local().String(), uid, err.Error())
+				fmt.Printf("[%s] PlanCheckTwitterUser UpdateChannelUser UID[%d] Error:%s\n", time.Now().Local().String(), uid, err.Error())
 			} else {
-				fmt.Printf("PlanCheckTwitterUser UpdateChannelUser [%s] UID[%d] Success\n", time.Now().Local().String(), uid)
+				fmt.Printf("[%s] PlanCheckTwitterUser UpdateChannelUser UID[%d] Success\n", time.Now().Local().String(), uid)
 			}
 		}
 	}

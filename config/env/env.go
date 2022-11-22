@@ -26,6 +26,7 @@ type Env struct {
 	AllowOrigins                string `env:"ALLOW_ORIGINS" envDefault:""`
 	MisesEndpoint               string `env:"MISES_ENDPOINT" envDefault:""`
 	MisesChainID                string `env:"MISES_CHAIN_ID" envDefault:""`
+	MisesAirdropAppName         string `env:"MisesAirdropAppName" envDefault:"Mises Faucet"`
 	DebugAirdropPrefix          string `env:"DEBUG_AIRDROP_PREFIX" envDefault:""`
 	GOTWI_API_KEY               string `env:"GOTWI_API_KEY" envDefault:""`
 	GOTWI_API_KEY_SECRET        string `env:"GOTWI_API_KEY_SECRET" envDefault:""`

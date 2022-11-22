@@ -58,7 +58,7 @@ func New() IClient {
 		PassPhrase: "mises.site",
 	}
 	appinfo := types.NewMisesAppInfoReadonly(
-		"Mises Faucet",
+		env.Envs.MisesAirdropAppName,
 		"https://www.mises.site",
 		"https://home.mises.site",
 		[]string{"mises.site"},
