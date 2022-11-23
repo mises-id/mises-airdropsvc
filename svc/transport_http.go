@@ -585,6 +585,16 @@ func DecodeHTTPTwitterCallbackZeroRequest(_ context.Context, r *http.Request) (i
 		req.OauthVerifier = OauthVerifierTwitterCallback
 	}
 
+	if UserAgentTwitterCallbackStrArr, ok := queryParams["user_agent"]; ok {
+		UserAgentTwitterCallbackStr := UserAgentTwitterCallbackStrArr[0]
+
+		err = json.Unmarshal([]byte(UserAgentTwitterCallbackStr), req.UserAgent)
+		if err != nil {
+			return nil, errors.Wrapf(err, "couldn't decode UserAgentTwitterCallback from %v", UserAgentTwitterCallbackStr)
+		}
+
+	}
+
 	return &req, err
 }
 
@@ -640,6 +650,16 @@ func DecodeHTTPTwitterCallbackOneRequest(_ context.Context, r *http.Request) (in
 		OauthVerifierTwitterCallbackStr := OauthVerifierTwitterCallbackStrArr[0]
 		OauthVerifierTwitterCallback := OauthVerifierTwitterCallbackStr
 		req.OauthVerifier = OauthVerifierTwitterCallback
+	}
+
+	if UserAgentTwitterCallbackStrArr, ok := queryParams["user_agent"]; ok {
+		UserAgentTwitterCallbackStr := UserAgentTwitterCallbackStrArr[0]
+
+		err = json.Unmarshal([]byte(UserAgentTwitterCallbackStr), req.UserAgent)
+		if err != nil {
+			return nil, errors.Wrapf(err, "couldn't decode UserAgentTwitterCallback from %v", UserAgentTwitterCallbackStr)
+		}
+
 	}
 
 	return &req, err

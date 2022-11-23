@@ -37,6 +37,7 @@ type Env struct {
 	VALID_TWITTER_REGISTER_DATE string `env:"VALID_TWITTER_REGISTER_DATE"`
 	MinCheckFollowers           uint64 `env:"MinCheckFollowers" envDefault:"350"`
 	MaxCheckFollowers           uint64 `env:"MaxCheckFollowers" envDefault:"10000"`
+	FollowsMaxResults           uint64 `env:"FollowsMaxResults" envDefault:"50"`
 	RootPath                    string
 }
 

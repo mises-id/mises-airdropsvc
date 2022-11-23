@@ -32,6 +32,15 @@ type (
 		TotalFollowerNum  int `bson:"total_follower_num"`
 		RecentRegisterNum int `bson:"recent_register_num"`
 	}
+
+	UserAgent struct {
+		Ua       string `json:"ua" bson:"ua"`
+		Os       string `json:"os" bson:"os"`
+		Ipaddr   string `bson:"ipaddr"`
+		Browser  string `json:"browser" bson:"browser"`
+		Platform string `json:"platform" bson:"platform"`
+		DeviceId string `json:"device_id" bson:"device_id"`
+	}
 	UserTwitterAuth struct {
 		ID                   primitive.ObjectID `bson:"_id,omitempty"`
 		UID                  uint64             `bson:"uid"`
@@ -53,7 +62,7 @@ type (
 		FollowState          int                `bson:"follow_state"`            // 1 pending 2 success 3 failed 4 Unauthorized
 		ValidState           int                `bson:"valid_state"`             // 2 valid 3 invalid 4 need check
 		IsFollowed           bool               `bson:"is_followed"`
-		Ipaddr               string             `bson:"ipaddr"`
+		UserAgent            *UserAgent         `bson:"user_agent"`
 	}
 )
 
@@ -69,6 +78,7 @@ func CreateUserTwitterAuth(ctx context.Context, data *UserTwitterAuth) error {
 	created["oauth_token"] = data.OauthToken
 	created["oauth_token_secret"] = data.OauthTokenSecret
 	created["find_twitter_user_state"] = data.FindTwitterUserState
+	created["user_agent"] = data.UserAgent
 	opt := &options.FindOneAndUpdateOptions{}
 	opt.SetUpsert(true)
 	opt.SetReturnDocument(1)

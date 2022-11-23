@@ -163,10 +163,18 @@ message TestRequest {
 message TestResponse {
 
 }
+message UserAgent {
+    string ua = 1;
+    string ipaddr = 2;
+    string browser = 3;
+    string platform = 4;
+    string os = 5;
+    string device_id = 6;
+  }
 message UserAvatar {
     string small = 1;
-      string		medium = 2;
-    string	large = 3;
+    string medium = 2;
+    string large = 3;
     string nft_asset_id = 4;
   }
 message UserInfo {
@@ -322,6 +330,7 @@ message GetTwitterAuthUrlRequest{
     uint64 current_uid = 1;
     string oauth_token = 2;
     string oauth_verifier = 3;
+    UserAgent user_agent = 4;
   }
   message TwitterCallbackResponse{
     uint64 code = 1;

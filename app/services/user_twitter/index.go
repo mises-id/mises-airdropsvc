@@ -78,6 +78,10 @@ type (
 		Twitter *models.UserTwitterAuth
 		Airdrop *models.Airdrop
 	}
+	CallbackParams struct {
+		OauthToken, OauthVerifier string
+		UserAgent                 *models.UserAgent
+	}
 )
 
 func init() {
@@ -288,7 +292,7 @@ func userFollowers(ctx context.Context, user_twitter *models.UserTwitterAuth) (*
 	}
 	params := &usersType.FollowsFollowersParams{
 		ID:         user_twitter.TwitterUserId,
-		MaxResults: 20,
+		MaxResults: usersType.FollowsMaxResults(env.Envs.FollowsMaxResults),
 		UserFields: fields.UserFieldList{
 			fields.UserFieldCreatedAt,
 			fields.UserFieldPublicMetrics,
@@ -348,20 +352,22 @@ func getTwitterCallbackUrl(code, username, misesid string) string {
 }
 
 //twitter auth callback
-func TwitterCallback(ctx context.Context, uid uint64, oauth_token, oauth_verifier string) string {
+func TwitterCallback(ctx context.Context, uid uint64, in *CallbackParams) string {
 
 	var (
 		callback0 string = getTwitterCallbackUrl("0", "", "")
 		callback1 string = getTwitterCallbackUrl("1", "", "")
 		callback2 string = getTwitterCallbackUrl("2", "", "")
 	)
+	oauth_token := in.OauthToken
+	oauth_verifier := in.OauthVerifier
 	if oauth_token == "" || oauth_verifier == "" {
-		fmt.Printf("Oauth_token[%s],oauth_verifier[%s] err", oauth_token, oauth_verifier)
+		fmt.Printf("[%s] Oauth_token[%s],oauth_verifier[%s] Empty \n", time.Now().Local().String(), oauth_token, oauth_verifier)
 		return callback2
 	}
 	user, err := socialModel.FindUser(ctx, uid)
 	if err != nil {
-		fmt.Println("Twitter callback find user err: ", err.Error())
+		fmt.Printf("[%s] Twitter callback find user Error: %s \n", time.Now().Local().String(), err.Error())
 		return callback2
 	}
 	userMisesid := user.Misesid
@@ -369,13 +375,13 @@ func TwitterCallback(ctx context.Context, uid uint64, oauth_token, oauth_verifie
 	//find twitter user
 	access_token, err := AccessToken(ctx, oauth_token, oauth_verifier)
 	if err != nil {
-		fmt.Println("Twitter callback access token err: ", err.Error())
+		fmt.Printf("[%s] Twitter callback access token Error:%s \n", time.Now().Local().String(), err.Error())
 		return callback2
 	}
 	params, _ := url.ParseQuery(access_token)
 	user_ids, ok := params["user_id"]
 	if !ok || len(user_ids) <= 0 {
-		fmt.Println("Twitter callback user_id err: ", err.Error())
+		fmt.Printf("[%s] Twitter callback user_id Error:%s \n", time.Now().Local().String(), err.Error())
 		return callback2
 	}
 	oauth_tokens, ok := params["oauth_token"]
@@ -388,13 +394,13 @@ func TwitterCallback(ctx context.Context, uid uint64, oauth_token, oauth_verifie
 
 	if twitter_auth != nil && twitter_auth.UID != uid {
 		callback1 = getTwitterCallbackUrl("1", twitter_auth.TwitterUser.UserName, userMisesid)
-		fmt.Printf("FindUserTwitterAuthByTwitterUserId exist uid[%d],username[%s]\n ", uid, twitter_auth.TwitterUser.UserName)
+		fmt.Printf("[%s] FindUserTwitterAuthByTwitterUserId exist uid[%d],username[%s]\n ", time.Now().Local().String(), uid, twitter_auth.TwitterUser.UserName)
 		return callback1
 	}
 	//check uid
 	user_twitter, err := models.FindUserTwitterAuthByUid(ctx, uid)
 	if err != nil && err != mongo.ErrNoDocuments {
-		fmt.Println("Twitter callback FindUserTwitterAuthByUid err: ", err.Error())
+		fmt.Printf("[%s] Twitter callback FindUserTwitterAuthByUid Error:%s \n", time.Now().Local().String(), err.Error())
 		return callback2
 	}
 	callback0 = getTwitterCallbackUrl("0", "", userMisesid)
@@ -404,7 +410,7 @@ func TwitterCallback(ctx context.Context, uid uint64, oauth_token, oauth_verifie
 	if user_twitter == nil {
 		//create
 		if airdrop != nil {
-			fmt.Printf("Twitter callback airdrop exist uid[%d]\n", uid)
+			fmt.Printf("[%s] Twitter callback airdrop exist uid[%d]\n", time.Now().Local().String(), uid)
 			return callback0
 		}
 		add := &models.UserTwitterAuth{
@@ -414,6 +420,7 @@ func TwitterCallback(ctx context.Context, uid uint64, oauth_token, oauth_verifie
 			FindTwitterUserState: 1,
 			OauthToken:           oauth_token_new,
 			OauthTokenSecret:     oauth_token_secret,
+			UserAgent:            in.UserAgent,
 		}
 		err = models.CreateUserTwitterAuth(ctx, add)
 
@@ -428,7 +435,7 @@ func TwitterCallback(ctx context.Context, uid uint64, oauth_token, oauth_verifie
 		err = models.UpdateUserTwitterAuth(ctx, user_twitter)
 	}
 	if err != nil {
-		fmt.Println("Twitter callback save err: ", err.Error())
+		fmt.Printf("[%s] Twitter callback save Error: %s \n", time.Now().Local().String(), err.Error())
 	}
 	return callback0
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/mises-id/mises-airdropsvc/app/factory"
+	"github.com/mises-id/mises-airdropsvc/app/models"
 	airdropSVC "github.com/mises-id/mises-airdropsvc/app/services/airdrop"
 	channelSVC "github.com/mises-id/mises-airdropsvc/app/services/channel_list"
 	channelUserSVC "github.com/mises-id/mises-airdropsvc/app/services/channel_user"
@@ -106,7 +107,22 @@ func (s airdropsvcService) AirdropChannel(ctx context.Context, in *pb.AirdropCha
 
 func (s airdropsvcService) TwitterCallback(ctx context.Context, in *pb.TwitterCallbackRequest) (*pb.TwitterCallbackResponse, error) {
 	var resp pb.TwitterCallbackResponse
-	url := user_twitter.TwitterCallback(ctx, in.CurrentUid, in.OauthToken, in.OauthVerifier)
+	params := &user_twitter.CallbackParams{
+		OauthToken:    in.OauthToken,
+		OauthVerifier: in.OauthVerifier,
+	}
+	if in.UserAgent != nil {
+		user_agent := &models.UserAgent{
+			Ua:       in.UserAgent.Ua,
+			Ipaddr:   in.UserAgent.Ipaddr,
+			Os:       in.UserAgent.Os,
+			Platform: in.UserAgent.Platform,
+			Browser:  in.UserAgent.Browser,
+			DeviceId: in.UserAgent.DeviceId,
+		}
+		params.UserAgent = user_agent
+	}
+	url := user_twitter.TwitterCallback(ctx, in.CurrentUid, params)
 	resp.Code = 0
 	resp.Url = url
 	return &resp, nil
