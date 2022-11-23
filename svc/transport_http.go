@@ -393,6 +393,16 @@ func DecodeHTTPGetTwitterAuthUrlZeroRequest(_ context.Context, r *http.Request) 
 		req.CurrentUid = CurrentUidGetTwitterAuthUrl
 	}
 
+	if UserAgentGetTwitterAuthUrlStrArr, ok := queryParams["user_agent"]; ok {
+		UserAgentGetTwitterAuthUrlStr := UserAgentGetTwitterAuthUrlStrArr[0]
+
+		err = json.Unmarshal([]byte(UserAgentGetTwitterAuthUrlStr), req.UserAgent)
+		if err != nil {
+			return nil, errors.Wrapf(err, "couldn't decode UserAgentGetTwitterAuthUrl from %v", UserAgentGetTwitterAuthUrlStr)
+		}
+
+	}
+
 	return &req, err
 }
 
@@ -436,6 +446,16 @@ func DecodeHTTPGetTwitterAuthUrlOneRequest(_ context.Context, r *http.Request) (
 			return nil, errors.Wrap(err, fmt.Sprintf("Error while extracting CurrentUidGetTwitterAuthUrl from query, queryParams: %v", queryParams))
 		}
 		req.CurrentUid = CurrentUidGetTwitterAuthUrl
+	}
+
+	if UserAgentGetTwitterAuthUrlStrArr, ok := queryParams["user_agent"]; ok {
+		UserAgentGetTwitterAuthUrlStr := UserAgentGetTwitterAuthUrlStrArr[0]
+
+		err = json.Unmarshal([]byte(UserAgentGetTwitterAuthUrlStr), req.UserAgent)
+		if err != nil {
+			return nil, errors.Wrapf(err, "couldn't decode UserAgentGetTwitterAuthUrl from %v", UserAgentGetTwitterAuthUrlStr)
+		}
+
 	}
 
 	return &req, err
@@ -595,6 +615,12 @@ func DecodeHTTPTwitterCallbackZeroRequest(_ context.Context, r *http.Request) (i
 
 	}
 
+	if StateTwitterCallbackStrArr, ok := queryParams["state"]; ok {
+		StateTwitterCallbackStr := StateTwitterCallbackStrArr[0]
+		StateTwitterCallback := StateTwitterCallbackStr
+		req.State = StateTwitterCallback
+	}
+
 	return &req, err
 }
 
@@ -660,6 +686,12 @@ func DecodeHTTPTwitterCallbackOneRequest(_ context.Context, r *http.Request) (in
 			return nil, errors.Wrapf(err, "couldn't decode UserAgentTwitterCallback from %v", UserAgentTwitterCallbackStr)
 		}
 
+	}
+
+	if StateTwitterCallbackStrArr, ok := queryParams["state"]; ok {
+		StateTwitterCallbackStr := StateTwitterCallbackStrArr[0]
+		StateTwitterCallback := StateTwitterCallbackStr
+		req.State = StateTwitterCallback
 	}
 
 	return &req, err

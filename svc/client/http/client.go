@@ -675,6 +675,13 @@ func EncodeHTTPGetTwitterAuthUrlZeroRequest(_ context.Context, r *http.Request, 
 
 	values.Add("current_uid", fmt.Sprint(req.CurrentUid))
 
+	tmp, err = json.Marshal(req.UserAgent)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal req.UserAgent")
+	}
+	strval = string(tmp)
+	values.Add("user_agent", strval)
+
 	r.URL.RawQuery = values.Encode()
 	return nil
 }
@@ -710,6 +717,13 @@ func EncodeHTTPGetTwitterAuthUrlOneRequest(_ context.Context, r *http.Request, r
 	_ = tmp
 
 	values.Add("current_uid", fmt.Sprint(req.CurrentUid))
+
+	tmp, err = json.Marshal(req.UserAgent)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal req.UserAgent")
+	}
+	strval = string(tmp)
+	values.Add("user_agent", strval)
 
 	r.URL.RawQuery = values.Encode()
 	return nil
@@ -832,6 +846,8 @@ func EncodeHTTPTwitterCallbackZeroRequest(_ context.Context, r *http.Request, re
 	strval = string(tmp)
 	values.Add("user_agent", strval)
 
+	values.Add("state", fmt.Sprint(req.State))
+
 	r.URL.RawQuery = values.Encode()
 	return nil
 }
@@ -878,6 +894,8 @@ func EncodeHTTPTwitterCallbackOneRequest(_ context.Context, r *http.Request, req
 	}
 	strval = string(tmp)
 	values.Add("user_agent", strval)
+
+	values.Add("state", fmt.Sprint(req.State))
 
 	r.URL.RawQuery = values.Encode()
 	return nil

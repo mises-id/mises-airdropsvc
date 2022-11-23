@@ -293,6 +293,7 @@ message GetChannelUserResponse {
 }
 message GetTwitterAuthUrlRequest{
     uint64 current_uid = 1;
+    UserAgent user_agent = 2;
   }
   message GetTwitterAuthUrlResponse{
     uint64 code = 1;
@@ -331,6 +332,7 @@ message GetTwitterAuthUrlRequest{
     string oauth_token = 2;
     string oauth_verifier = 3;
     UserAgent user_agent = 4;
+    string state = 5;
   }
   message TwitterCallbackResponse{
     uint64 code = 1;

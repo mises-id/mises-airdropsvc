@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"strconv"
+	"strings"
 
 	"github.com/mises-id/mises-airdropsvc/app/factory"
 	"github.com/mises-id/mises-airdropsvc/app/models"
@@ -27,7 +29,13 @@ func (s airdropsvcService) Test(ctx context.Context, in *pb.TestRequest) (*pb.Te
 
 func (s airdropsvcService) GetTwitterAuthUrl(ctx context.Context, in *pb.GetTwitterAuthUrlRequest) (*pb.GetTwitterAuthUrlResponse, error) {
 	var resp pb.GetTwitterAuthUrlResponse
-	url, err := user_twitter.GetTwitterAuthUrl(ctx, in.CurrentUid)
+	params := &user_twitter.GetTwitterAuthUrlParams{
+		UID: in.CurrentUid,
+	}
+	if in.UserAgent != nil {
+		params.DeviceId = in.UserAgent.DeviceId
+	}
+	url, err := user_twitter.GetTwitterAuthUrl(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +129,17 @@ func (s airdropsvcService) TwitterCallback(ctx context.Context, in *pb.TwitterCa
 			DeviceId: in.UserAgent.DeviceId,
 		}
 		params.UserAgent = user_agent
+	}
+	if in.State != "" {
+		stateArr := strings.Split(in.State, user_twitter.CallbackStateFlag)
+		if len(stateArr) == 2 {
+			uid, _ := strconv.ParseUint(stateArr[0], 10, 64)
+			in.CurrentUid = uid
+			device_id := stateArr[1]
+			if params.UserAgent != nil {
+				params.UserAgent.DeviceId = device_id
+			}
+		}
 	}
 	url := user_twitter.TwitterCallback(ctx, in.CurrentUid, params)
 	resp.Code = 0

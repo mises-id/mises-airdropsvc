@@ -8,6 +8,7 @@ import (
 
 	"github.com/mises-id/mises-airdropsvc/app/models/enum"
 	"github.com/mises-id/mises-airdropsvc/app/models/search"
+	"github.com/mises-id/mises-airdropsvc/lib/codes"
 	"github.com/mises-id/mises-airdropsvc/lib/db"
 	socialModel "github.com/mises-id/sns-socialsvc/app/models"
 	"go.mongodb.org/mongo-driver/bson"
@@ -93,7 +94,7 @@ func CreateChannelByMisesid(ctx context.Context, misesid string) (*ChannelList, 
 	user, err := socialModel.FindUserByMisesid(ctx, misesid)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			err = errors.New("misesid not exist")
+			err = codes.ErrNotFound.Newf("misesid not exist")
 		}
 		return nil, err
 	}

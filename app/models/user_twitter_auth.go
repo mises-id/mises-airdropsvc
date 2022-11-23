@@ -28,6 +28,7 @@ type (
 	CheckResult struct {
 		CheckNum          int `bson:"check_num"`
 		ZeroTweetNum      int `bson:"zero_tweet_num"`
+		LowFollowerNum    int `bson:"low_follower_num"`
 		ZeroFollowerNum   int `bson:"zero_follower_num"`
 		TotalFollowerNum  int `bson:"total_follower_num"`
 		RecentRegisterNum int `bson:"recent_register_num"`

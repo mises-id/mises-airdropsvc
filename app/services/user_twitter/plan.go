@@ -314,7 +314,7 @@ func runCheckTwitterUser(ctx context.Context) error {
 		followersNum := len(followers.Data)
 		et := time.Now().UTC().AddDate(0, -3, 0)
 		fmt.Printf("[%s] uid[%d],PlanCheckTwitterUser Check ET[%s]\n", time.Now().String(), uid, et.String())
-		var zeroTweetNum, zeroFollowerNum, recentRegisterNum, totalFollowerNum int
+		var zeroTweetNum, zeroFollowerNum, lowFollowerNum, recentRegisterNum, totalFollowerNum int
 		for _, follower := range followers.Data {
 			followerUser := &models.TwitterUser{
 				TwitterUserId:  *follower.ID,
@@ -332,20 +332,23 @@ func runCheckTwitterUser(ctx context.Context) error {
 			if followerUser.FollowersCount == 0 {
 				zeroFollowerNum++
 			}
+			if followerUser.FollowersCount <= 5 {
+				lowFollowerNum++
+			}
 			if et.UTC().Unix() < followerUser.CreatedAt.UTC().Unix() {
 				recentRegisterNum++
 			}
-			fmt.Println("followerUser: ", followerUser)
 		}
 		checkResult := &models.CheckResult{
 			CheckNum:          followersNum,
 			ZeroTweetNum:      zeroTweetNum,
 			ZeroFollowerNum:   zeroFollowerNum,
+			LowFollowerNum:    lowFollowerNum,
 			RecentRegisterNum: recentRegisterNum,
 			TotalFollowerNum:  totalFollowerNum,
 		}
 		user_twitter.CheckResult = checkResult
-		fmt.Printf("[%s] uid[%d],PlanCheckTwitterUser Check FollowersNum[%d],zeroTweetNum[%d],zeroFollowerNum[%d],recentRegisterNum[%d],totalFollowerNum[%d]\n", time.Now().String(), uid, followersNum, zeroTweetNum, zeroFollowerNum, recentRegisterNum, totalFollowerNum)
+		fmt.Printf("[%s] uid[%d],PlanCheckTwitterUser Check FollowersNum[%d],zeroTweetNum[%d],zeroFollowerNum[%d],lowFollowerNum[%d],recentRegisterNum[%d],totalFollowerNum[%d]\n", time.Now().String(), uid, followersNum, zeroTweetNum, zeroFollowerNum, lowFollowerNum, recentRegisterNum, totalFollowerNum)
 		channel_user, err := models.FindChannelUserByUID(ctx, uid)
 		var amount int64
 		var do_channeluser bool

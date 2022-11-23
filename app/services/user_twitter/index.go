@@ -33,7 +33,9 @@ import (
 )
 
 const (
-	callbackBase                 = "https://api.alb.mises.site/api/v1/twitter/callback"
+	CallbackStateFlag            = "mises&=mises"
+	callbackBase                 = "https://api.alb.mises.site"
+	callbackPath                 = "api/v1/twitter/callback"
 	RequestTokenEndpoint         = "https://api.twitter.com/oauth/request_token"
 	AccessTokenEndpoint          = "https://api.twitter.com/oauth/access_token"
 	AuthEndpoint                 = "https://api.twitter.com/oauth/authorize"
@@ -82,6 +84,10 @@ type (
 		OauthToken, OauthVerifier string
 		UserAgent                 *models.UserAgent
 	}
+	GetTwitterAuthUrlParams struct {
+		UID      uint64
+		DeviceId string
+	}
 )
 
 func init() {
@@ -91,8 +97,18 @@ func init() {
 }
 
 //get twitter auth url
-func GetTwitterAuthUrl(ctx context.Context, uid uint64) (string, error) {
-	callback := fmt.Sprintf("%s?uid=%d", callbackBase, uid)
+func GetTwitterAuthUrl(ctx context.Context, in *GetTwitterAuthUrlParams) (string, error) {
+	uid := in.UID
+	device_id := in.DeviceId
+	baseUrl, err := url.Parse(callbackBase)
+	if err != nil {
+		return "", err
+	}
+	baseUrl.Path = callbackPath
+	v := url.Values{}
+	v.Add("state", fmt.Sprintf("%d%s%s", uid, CallbackStateFlag, device_id))
+	baseUrl.RawQuery = v.Encode()
+	callback := baseUrl.String()
 	auth, err := RequestToken(ctx, callback)
 	if err != nil {
 		return "", err
@@ -174,9 +190,9 @@ func GetTwitterAirdropCoin(ctx context.Context, userTwitter *models.UserTwitterA
 		if userTwitter.CheckResult.RecentRegisterNum*5 >= checkNum*4 {
 			score = 1
 		}
-		if userTwitter.CheckResult.TotalFollowerNum >= 1000*checkNum {
+		/* if userTwitter.CheckResult.TotalFollowerNum >= 1000*checkNum {
 			score = 100
-		}
+		} */
 	}
 	if score <= 0 {
 		score = 1
@@ -475,7 +491,6 @@ func setProxy() func(*http.Request) (*url.URL, error) {
 
 //get twitter auth request_token
 func RequestToken(ctx context.Context, callback string) (string, error) {
-
 	api := fmt.Sprintf("%s?oauth_callback=%s", RequestTokenEndpoint, callback)
 	transport := &http.Transport{Proxy: setProxy()}
 	client := &http.Client{Transport: transport}
@@ -491,7 +506,6 @@ func RequestToken(ctx context.Context, callback string) (string, error) {
 		SigningKey:       getSignKey(),
 		ParameterMap:     ParameterMap,
 	}
-
 	out, err := CreateOAuthSignature(in)
 	if err != nil {
 		return "", err
