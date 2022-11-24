@@ -27,7 +27,11 @@ type (
 		TwitterUserState     int
 		FindTwitterUserState int
 		SendTweetState       int
+		LikeTweetState       int
 		ValidState           int
+		MinFollower          int
+		MaxFollower          int
+		DeviceId             string
 		//sort
 		SortKey  string
 		SortBy   string
@@ -62,6 +66,12 @@ func (params *UserTwitterAuthSearch) BuildSearchParams(chain *odm.DB) *odm.DB {
 	if params.TwitterUserId != "" {
 		params.TwitterUserIds = []string{params.TwitterUserId}
 	}
+	if params.MinFollower > 0 {
+		chain = chain.Where(bson.M{"twitter_user.followers_count": bson.M{"$gte": params.MinFollower}})
+	}
+	if params.MaxFollower > 0 {
+		chain = chain.Where(bson.M{"twitter_user.followers_count": bson.M{"$lte": params.MaxFollower}})
+	}
 	if params.TwitterUserIds != nil && len(params.TwitterUserIds) > 0 {
 		chain = chain.Where(bson.M{"twitter_user_id": bson.M{"$in": params.TwitterUserIds}})
 	}
@@ -73,6 +83,12 @@ func (params *UserTwitterAuthSearch) BuildSearchParams(chain *odm.DB) *odm.DB {
 	}
 	if params.SendTweetState > 0 {
 		chain = chain.Where(bson.M{"send_tweet_state": params.SendTweetState})
+	}
+	if params.LikeTweetState > 0 {
+		chain = chain.Where(bson.M{"like_tweet_state": params.LikeTweetState})
+	}
+	if params.DeviceId != "" {
+		chain = chain.Where(bson.M{"user_agent.device_id": params.DeviceId})
 	}
 	if params.FindTwitterUserState > 0 {
 		chain = chain.Where(bson.M{"find_twitter_user_state": params.FindTwitterUserState})

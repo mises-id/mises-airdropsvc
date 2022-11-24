@@ -184,7 +184,7 @@ func GetTwitterAirdropCoin(ctx context.Context, userTwitter *models.UserTwitterA
 	//followers quality
 	if userTwitter.CheckResult != nil && userTwitter.CheckResult.CheckNum > 0 {
 		checkNum := userTwitter.CheckResult.CheckNum
-		if userTwitter.CheckResult.ZeroTweetNum*2 >= checkNum || userTwitter.CheckResult.ZeroFollowerNum*2 >= checkNum {
+		if userTwitter.CheckResult.LowFollowerNum*5 >= checkNum*3 || userTwitter.CheckResult.ZeroTweetNum*2 >= checkNum || userTwitter.CheckResult.ZeroFollowerNum*2 >= checkNum {
 			score = 1
 		}
 		if userTwitter.CheckResult.RecentRegisterNum*5 >= checkNum*4 {
@@ -193,6 +193,9 @@ func GetTwitterAirdropCoin(ctx context.Context, userTwitter *models.UserTwitterA
 		/* if userTwitter.CheckResult.TotalFollowerNum >= 1000*checkNum {
 			score = 100
 		} */
+	}
+	if userTwitter.UserAgent != nil && userTwitter.UserAgent.DeviceId != "" && userTwitter.DeviceIdNum > 1 {
+		score = 1
 	}
 	if score <= 0 {
 		score = 1
@@ -258,6 +261,35 @@ func reTweet(ctx context.Context, user_twitter *models.UserTwitterAuth) error {
 		TweetID: &targetRetweetID,
 	}
 	_, err = tweets.TweetRetweetsPost(ctx, twitter_client, params)
+
+	return err
+}
+
+//reply tweet
+func replyTweet(ctx context.Context, user_twitter *models.UserTwitterAuth, reply string) error {
+
+	if user_twitter.OauthToken == "" || user_twitter.OauthTokenSecret == "" {
+		return codes.ErrForbidden.Newf("OAuthToken and OAuthTokenSecret is required")
+	}
+	transport := &http.Transport{Proxy: setProxy()}
+	client := &http.Client{Transport: transport}
+	in := &gotwi.NewGotwiClientInput{
+		HTTPClient:           client,
+		AuthenticationMethod: gotwi.AuthenMethodOAuth1UserContext,
+		OAuthToken:           user_twitter.OauthToken,
+		OAuthTokenSecret:     user_twitter.OauthTokenSecret,
+	}
+	twitter_client, err := gotwi.NewGotwiClient(in)
+	if err != nil {
+		return err
+	}
+	params := &tweetsType.ManageTweetsPostParams{
+		Text: &reply,
+		Reply: &tweetsType.ManageTweetsPostParamsReply{
+			InReplyToTweetID: targetRetweetID,
+		},
+	}
+	_, err = tweets.ManageTweetsPost(ctx, twitter_client, params)
 
 	return err
 }

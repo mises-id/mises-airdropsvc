@@ -2,6 +2,7 @@ package user_twitter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -15,7 +16,9 @@ import (
 
 const (
 	lookupUserNum       = 10
-	sendTweetNum        = 5
+	sendTweetNum        = 3
+	replyTweetNum       = 6
+	likeTweetNum        = 10
 	followTwitterNum    = 5
 	checkTwitterUserNum = 5
 )
@@ -86,6 +89,23 @@ func runLookupTwitterUser(ctx context.Context) error {
 			do_channeluser = true
 			fmt.Printf("[%s] RunLookupTwitterUser DoChannelUser True UID[%d]\n", time.Now().Local().String(), uid)
 		}
+		//check user_agent
+		if user_twitter.UserAgent != nil {
+			//device_id
+			if user_twitter.UserAgent.DeviceId != "" {
+				device_id := user_twitter.UserAgent.DeviceId
+				deviceIDParams := &search.UserTwitterAuthSearch{
+					DeviceId: device_id,
+				}
+				device_id_num, err := models.CountUserTwitterAuth(ctx, deviceIDParams)
+				if err == nil {
+					user_twitter.DeviceIdNum = device_id_num
+					if device_id_num > 1 {
+						fmt.Printf("[%s] RunLookupTwitterUser DeviceId:%s, DeviceIdNum: %d\n", time.Now().Local().String(), device_id, device_id_num)
+					}
+				}
+			}
+		}
 		//check
 		followers_count := user_twitter.TwitterUser.FollowersCount
 		//is_valid
@@ -107,6 +127,7 @@ func runLookupTwitterUser(ctx context.Context) error {
 				user_twitter.IsAirdrop = true
 				user_twitter.ValidState = 2
 				user_twitter.SendTweeState = 1
+				user_twitter.LikeTweeState = 1
 				//channel_user
 				if do_channeluser {
 					amount = user_twitter.Amount / 10
@@ -145,7 +166,8 @@ func runSendTweet(ctx context.Context) error {
 	//get list
 	params := &search.UserTwitterAuthSearch{
 		SendTweetState: 1,
-		SortBy:         followerSortOrIDAsc(),
+		MinFollower:    100,
+		SortBy:         "followers_count_sort",
 		ListNum:        int64(sendTweetNum),
 	}
 	user_twitter_list, err := models.ListUserTwitterAuth(ctx, params)
@@ -199,6 +221,113 @@ func runSendTweet(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+func PlanLikeTweet(ctx context.Context) error {
+	fmt.Printf("[%s] RunLikeTweet Start\n", time.Now().Local().String())
+	err := runLikeTweet(ctx)
+	fmt.Printf("[%s] RunLikeTweet End\n", time.Now().Local().String())
+	return err
+}
+
+func runLikeTweet(ctx context.Context) error {
+	//get list
+	params := &search.UserTwitterAuthSearch{
+		LikeTweetState: 1,
+		SortBy:         "followers_count_sort",
+		ListNum:        int64(likeTweetNum),
+	}
+	user_twitter_list, err := models.ListUserTwitterAuth(ctx, params)
+	if err != nil {
+		return err
+	}
+	num := len(user_twitter_list)
+	if num <= 0 {
+		return nil
+	}
+	fmt.Printf("[%s] RunLikeTweet %d \n", time.Now().Local().String(), num)
+	//do list
+	for _, user_twitter := range user_twitter_list {
+		uid := user_twitter.UID
+		//like tweet
+		user_twitter.LikeTweeState = 2
+		if err := likeTweet(ctx, user_twitter); err != nil {
+			fmt.Printf("[%s] uid[%d] Like Tweet Error:%s \n", time.Now().Local().String(), uid, err.Error())
+			user_twitter.LikeTweeState = 3
+			if strings.Contains(err.Error(), "httpStatusCode=401") {
+				user_twitter.LikeTweeState = 4
+			}
+			if strings.Contains(err.Error(), "httpStatusCode=429") {
+				user_twitter.LikeTweeState = 5
+			}
+		}
+		if err := models.UpdateUserTwitterAuthLikeTweet(ctx, user_twitter); err != nil {
+			fmt.Printf("[%s] uid[%d] RunLikeTweet UpdateUserTwitterAuthLikeTweet Error:%s\n ", time.Now().Local().String(), uid, err.Error())
+			continue
+		}
+		if user_twitter.LikeTweeState == 2 {
+			fmt.Printf("[%s] uid[%d] LikeTweet Success \n", time.Now().Local().String(), uid)
+		}
+	}
+	return nil
+}
+
+func PlanReplyTweet(ctx context.Context) error {
+	fmt.Printf("[%s] RunReplyTweet Start\n", time.Now().Local().String())
+	err := runReplyTweet(ctx)
+	fmt.Printf("[%s] RunReplyTweet End\n", time.Now().Local().String())
+	return err
+}
+
+func runReplyTweet(ctx context.Context) error {
+	//get list
+	params := &search.UserTwitterAuthSearch{
+		SendTweetState: 1,
+		MaxFollower:    1999,
+		SortBy:         "id_asc",
+		ListNum:        int64(replyTweetNum),
+	}
+	user_twitter_list, err := models.ListUserTwitterAuth(ctx, params)
+	if err != nil {
+		return err
+	}
+	num := len(user_twitter_list)
+	if num <= 0 {
+		return nil
+	}
+	fmt.Printf("[%s] RunReplyTweet %d \n", time.Now().Local().String(), num)
+	//do list
+	for _, user_twitter := range user_twitter_list {
+		uid := user_twitter.UID
+		user_twitter.SendTweeState = 2
+		reply, _ := getReplyText(ctx, user_twitter)
+		if err := replyTweet(ctx, user_twitter, reply); err != nil {
+			fmt.Printf("[%s] uid[%d] Reply Tweet Error:%s \n", time.Now().Local().String(), uid, err.Error())
+			user_twitter.SendTweeState = 3
+			if strings.Contains(err.Error(), "httpStatusCode=401") {
+				user_twitter.SendTweeState = 4
+			}
+			if strings.Contains(err.Error(), "httpStatusCode=429") {
+				user_twitter.SendTweeState = 5
+			}
+		}
+		if err := models.UpdateUserTwitterAuthSendTweet(ctx, user_twitter); err != nil {
+			fmt.Printf("[%s] uid[%d] RunReplyTweet UpdateUserTwitterAuthSendTweet Error:%s\n ", time.Now().Local().String(), uid, err.Error())
+			continue
+		}
+		if user_twitter.SendTweeState == 2 {
+			fmt.Printf("[%s] uid[%d] RunReplyTweet Success \n", time.Now().Local().String(), uid)
+		}
+	}
+	return nil
+}
+
+func getReplyText(ctx context.Context, user_twitter *models.UserTwitterAuth) (string, error) {
+	if user_twitter == nil {
+		return "", errors.New("Reply TwitterUser null")
+	}
+	mis := utils.UMisesToMises(uint64(user_twitter.Amount))
+	reply := fmt.Sprintf("I have claimed %.2f $MIS airdrop by using Mises Browser @Mises001, which supports Web3 sites and extensions on mobile.", mis)
+	return reply, nil
 }
 
 //follow twitter
@@ -368,6 +497,7 @@ func runCheckTwitterUser(ctx context.Context) error {
 		user_twitter.IsAirdrop = true
 		user_twitter.ValidState = 2
 		user_twitter.SendTweeState = 1
+		user_twitter.LikeTweeState = 1
 		//channel_user
 		if do_channeluser {
 			amount = user_twitter.Amount / 10

@@ -64,6 +64,7 @@ type (
 		ValidState           int                `bson:"valid_state"`             // 2 valid 3 invalid 4 need check
 		IsFollowed           bool               `bson:"is_followed"`
 		UserAgent            *UserAgent         `bson:"user_agent"`
+		DeviceIdNum          int64              `bson:"device_id_num"`
 	}
 )
 
@@ -116,8 +117,20 @@ func UpdateUserTwitterAuthSendTweet(ctx context.Context, data *UserTwitterAuth) 
 
 	update := bson.M{}
 	update["send_tweet_state"] = data.SendTweeState
+	_, err := db.DB().Collection("usertwitterauths").UpdateOne(ctx, &bson.M{
+		"_id":              data.ID,
+		"send_tweet_state": 1,
+	}, bson.D{{Key: "$set", Value: update}})
+	return err
+}
+func UpdateUserTwitterAuthLikeTweet(ctx context.Context, data *UserTwitterAuth) error {
+
+	update := bson.M{}
 	update["like_tweet_state"] = data.LikeTweeState
-	_, err := db.DB().Collection("usertwitterauths").UpdateByID(ctx, data.ID, bson.D{{Key: "$set", Value: update}})
+	_, err := db.DB().Collection("usertwitterauths").UpdateOne(ctx, &bson.M{
+		"_id":              data.ID,
+		"like_tweet_state": 1,
+	}, bson.D{{Key: "$set", Value: update}})
 	return err
 }
 func UpdateUserTwitterAuthFindState(ctx context.Context, data *UserTwitterAuth) error {
@@ -143,6 +156,8 @@ func UpdateUserTwitterAuthTwitterUser(ctx context.Context, data *UserTwitterAuth
 	update["is_airdrop"] = data.IsAirdrop
 	update["find_twitter_user_state"] = data.FindTwitterUserState
 	update["send_tweet_state"] = data.SendTweeState
+	update["like_tweet_state"] = data.LikeTweeState
+	update["device_id_num"] = data.DeviceIdNum
 	if data.CheckResult != nil {
 		update["check_result"] = data.CheckResult
 	}

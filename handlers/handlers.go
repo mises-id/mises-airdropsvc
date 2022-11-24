@@ -196,3 +196,23 @@ func (s airdropsvcService) SendTweet(ctx context.Context, in *pb.SendTweetReques
 	resp.Code = 0
 	return &resp, nil
 }
+
+func (s airdropsvcService) ReplyTweet(ctx context.Context, in *pb.ReplyTweetRequest) (*pb.ReplyTweetResponse, error) {
+	var resp pb.ReplyTweetResponse
+	err := user_twitter.PlanReplyTweet(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp.Code = 0
+	return &resp, nil
+}
+
+func (s airdropsvcService) LikeTweet(ctx context.Context, in *pb.LikeTweetRequest) (*pb.LikeTweetResponse, error) {
+	var resp pb.LikeTweetResponse
+	err := user_twitter.PlanLikeTweet(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp.Code = 0
+	return &resp, nil
+}

@@ -60,6 +60,8 @@ func NewEndpoints(service pb.AirdropsvcServer) svc.Endpoints {
 		twitterfollowEndpoint     = svc.MakeTwitterFollowEndpoint(service)
 		lookuptwitterEndpoint     = svc.MakeLookupTwitterEndpoint(service)
 		sendtweetEndpoint         = svc.MakeSendTweetEndpoint(service)
+		liketweetEndpoint         = svc.MakeLikeTweetEndpoint(service)
+		replytweetEndpoint        = svc.MakeReplyTweetEndpoint(service)
 		checktwitteruserEndpoint  = svc.MakeCheckTwitterUserEndpoint(service)
 		channelinfoEndpoint       = svc.MakeChannelInfoEndpoint(service)
 		pagechanneluserEndpoint   = svc.MakePageChannelUserEndpoint(service)
@@ -76,6 +78,8 @@ func NewEndpoints(service pb.AirdropsvcServer) svc.Endpoints {
 		TwitterFollowEndpoint:     twitterfollowEndpoint,
 		LookupTwitterEndpoint:     lookuptwitterEndpoint,
 		SendTweetEndpoint:         sendtweetEndpoint,
+		LikeTweetEndpoint:         liketweetEndpoint,
+		ReplyTweetEndpoint:        replytweetEndpoint,
 		CheckTwitterUserEndpoint:  checktwitteruserEndpoint,
 		ChannelInfoEndpoint:       channelinfoEndpoint,
 		PageChannelUserEndpoint:   pagechanneluserEndpoint,
