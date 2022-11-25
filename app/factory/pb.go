@@ -29,6 +29,9 @@ func NewUserTwitterAuth(in *models.UserTwitterAuth) *pb.UserTwitterAuth {
 		TwitterUserId: in.TwitterUserId,
 		Misesid:       utils.RemoveMisesidProfix(in.Misesid),
 		Amount:        float32(utils.UMisesToMises(uint64(in.Amount))),
+		CheckState:    in.CheckState,
+		InvalidCode:   in.InvalidCode,
+		Reason:        in.Reason,
 		CreatedAt:     uint64(in.CreatedAt.Unix()),
 	}
 	if in.TwitterUser != nil {

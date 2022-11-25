@@ -65,6 +65,9 @@ type (
 		IsFollowed           bool               `bson:"is_followed"`
 		UserAgent            *UserAgent         `bson:"user_agent"`
 		DeviceIdNum          int64              `bson:"device_id_num"`
+		CheckState           string             `bson:"-"`
+		InvalidCode          string             `bson:"-"`
+		Reason               string             `bson:"-"`
 	}
 )
 

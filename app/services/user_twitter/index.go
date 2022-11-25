@@ -124,10 +124,25 @@ func GetAirdropInfo(ctx context.Context, uid uint64) (*AirdropInfoOutput, error)
 		return nil, err
 	}
 	if user_twitter != nil {
+		check_state := "pending"
 		if user_twitter.ValidState == 2 {
 			user_twitter.IsValid = true
-		} else {
-			user_twitter.TwitterUser = nil
+			check_state = "valid"
+		}
+		if user_twitter.ValidState == 3 {
+			user_twitter.IsValid = true
+			check_state = "invalid"
+		}
+		user_twitter.CheckState = check_state
+		if user_twitter.CheckState == "invalid" {
+			invalid_code := "created"
+			reason := "This Account was created after May. 1, 2022"
+			if user_twitter.TwitterUser != nil && user_twitter.TwitterUser.FollowersCount == 0 {
+				reason = "Insufficient social data in this Twitter account"
+				invalid_code = "followers"
+			}
+			user_twitter.InvalidCode = invalid_code
+			user_twitter.Reason = reason
 		}
 	}
 	airdrop, err := models.FindAirdropByUid(ctx, uid)

@@ -344,6 +344,9 @@ message GetTwitterAuthUrlRequest{
     float amount = 7;
     uint64 created_at = 8;
     string misesid = 9;
+    string check_state = 10;
+    string invalid_code = 11;
+    string reason = 12;
   }
   message Airdrop {
     float coin = 1;
