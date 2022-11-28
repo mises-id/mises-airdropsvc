@@ -166,8 +166,7 @@ func runSendTweet(ctx context.Context) error {
 	//get list
 	params := &search.UserTwitterAuthSearch{
 		SendTweetState: 1,
-		MinFollower:    100,
-		SortBy:         "followers_count_sort",
+		SortBy:         followerSortOrIDAsc(),
 		ListNum:        int64(sendTweetNum),
 	}
 	user_twitter_list, err := models.ListUserTwitterAuth(ctx, params)
