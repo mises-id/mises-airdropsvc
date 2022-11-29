@@ -65,7 +65,7 @@ func runLookupTwitterUser(ctx context.Context) error {
 			twitter_user, err = lookupTwitterUserV1(ctx, user_twitter)
 		}
 		if err != nil {
-			fmt.Printf("[%s] uid[%d] RunLookupTwitterUser GetTwitterUserById Error:%s \n", time.Now().Local().String(), uid, err.Error())
+			fmt.Printf("[%s] uid[%d] RunLookupTwitterUser AuthAppName[%s] GetTwitterUserById Error:%s \n", time.Now().Local().String(), uid, auth_app_name, err.Error())
 			user_twitter.FindTwitterUserState = 3
 			if strings.Contains(err.Error(), "httpStatusCode=401") || strings.Contains(err.Error(), "Invalid or expired token") {
 				//user_twitter.FindTwitterUserState = 4
@@ -142,7 +142,7 @@ func runLookupTwitterUser(ctx context.Context) error {
 			fmt.Printf("[%s] uid[%d] RunLookupTwitterUser UpdateUserTwitterAuthTwitterUser Error:%s \n", time.Now().Local().String(), uid, err.Error())
 			continue
 		}
-		fmt.Printf("[%s] uid[%d] RunLookupTwitterUser Success \n", time.Now().Local().String(), uid)
+		fmt.Printf("[%s] uid[%d] RunLookupTwitterUser AuthAppName[%s] Success \n", time.Now().Local().String(), uid, auth_app_name)
 		//do channel_user
 		if do_channeluser {
 			if err := channel_user.UpdateCreateAirdrop(ctx, valid_state, amount); err != nil {
@@ -169,7 +169,7 @@ func PlanSendTweet(ctx context.Context, in *PlanSendTweetParams) error {
 func runSendTweet(ctx context.Context, in *PlanSendTweetParams) error {
 	//get list
 	auth_app_name := defaultAuthAppName
-	if in != nil {
+	if in != nil && in.AuthAppName != "" {
 		auth_app_name = in.AuthAppName
 	}
 	params := &search.UserTwitterAuthSearch{
@@ -218,7 +218,7 @@ func runSendTweet(ctx context.Context, in *PlanSendTweetParams) error {
 			continue
 		}
 		if user_twitter.SendTweeState == 2 {
-			fmt.Printf("[%s] uid[%d] RunSendTweet Success \n", time.Now().Local().String(), uid)
+			fmt.Printf("[%s] uid[%d] RunSendTweet Success AuthAppName[%s]\n", time.Now().Local().String(), uid, auth_app_name)
 		}
 	}
 	return nil
@@ -270,13 +270,16 @@ func runLikeTweet(ctx context.Context) error {
 			if strings.Contains(err.Error(), "httpStatusCode=429") {
 				user_twitter.LikeTweeState = 5
 			}
+			if strings.Contains(err.Error(), "You have already") {
+				user_twitter.LikeTweeState = 2
+			}
 		}
 		if err := models.UpdateUserTwitterAuthLikeTweet(ctx, user_twitter); err != nil {
 			fmt.Printf("[%s] uid[%d] RunLikeTweet UpdateUserTwitterAuthLikeTweet Error:%s\n ", time.Now().Local().String(), uid, err.Error())
 			continue
 		}
 		if user_twitter.LikeTweeState == 2 {
-			fmt.Printf("[%s] uid[%d] LikeTweet Success \n", time.Now().Local().String(), uid)
+			fmt.Printf("[%s] uid[%d] LikeTweet Success AuthAppName[%s] \n", time.Now().Local().String(), uid, auth_app_name)
 		}
 	}
 	return nil
@@ -355,7 +358,7 @@ func FollowTwitter(ctx context.Context, in *PlanFollowParams) error {
 
 func runFollowTwitter(ctx context.Context, in *PlanFollowParams) error {
 	auth_app_name := defaultAuthAppName
-	if in != nil {
+	if in != nil && in.AuthAppName != "" {
 		auth_app_name = in.AuthAppName
 	}
 	//get list
@@ -403,7 +406,7 @@ func runFollowTwitter(ctx context.Context, in *PlanFollowParams) error {
 			continue
 		}
 		if user_twitter.FollowState == 2 {
-			fmt.Printf("[%s] uid[%d] RunFollowTwitter Success \n", time.Now().Local().String(), uid)
+			fmt.Printf("[%s] uid[%d] RunFollowTwitter Success AuthAppName[%s]\n", time.Now().Local().String(), uid, auth_app_name)
 		}
 	}
 	return nil
@@ -507,7 +510,7 @@ func runCheckTwitterUser(ctx context.Context) error {
 			TotalFollowerNum:  totalFollowerNum,
 		}
 		user_twitter.CheckResult = checkResult
-		fmt.Printf("[%s] uid[%d],PlanCheckTwitterUser Check FollowersNum[%d],zeroTweetNum[%d],zeroFollowerNum[%d],lowFollowerNum[%d],recentRegisterNum[%d],totalFollowerNum[%d]\n", time.Now().String(), uid, followersNum, zeroTweetNum, zeroFollowerNum, lowFollowerNum, recentRegisterNum, totalFollowerNum)
+		fmt.Printf("[%s] uid[%d] AuthAppName[%s] PlanCheckTwitterUser Check FollowersNum[%d],zeroTweetNum[%d],zeroFollowerNum[%d],lowFollowerNum[%d],recentRegisterNum[%d],totalFollowerNum[%d]\n", time.Now().String(), uid, auth_app_name, followersNum, zeroTweetNum, zeroFollowerNum, lowFollowerNum, recentRegisterNum, totalFollowerNum)
 		channel_user, err := models.FindChannelUserByUID(ctx, uid)
 		var amount int64
 		var do_channeluser bool
@@ -536,7 +539,7 @@ func runCheckTwitterUser(ctx context.Context) error {
 		//update
 		err = updateUserTwitterAuthTwitterUser(ctx, user_twitter)
 		if err == nil {
-			fmt.Printf("[%s] uid[%d],coin[%d] PlanCheckTwitterUser Success \n", time.Now().Local().String(), uid, user_twitter.Amount)
+			fmt.Printf("[%s] uid[%d],coin[%d] PlanCheckTwitterUser Success AuthAppName[%s] \n", time.Now().Local().String(), uid, user_twitter.Amount, auth_app_name)
 		}
 		//do channel_user
 		if do_channeluser {

@@ -130,6 +130,14 @@ func getAuthConfigByName(name string) (*AuthConfigParams, error) {
 			return v, nil
 		}
 	}
+	if name == defaultAuthAppName {
+		config := &AuthConfigParams{
+			name:   defaultAuthAppName,
+			key:    env.Envs.GOTWI_API_KEY,
+			secret: env.Envs.GOTWI_API_KEY_SECRET,
+		}
+		return config, nil
+	}
 	return nil, errors.New(fmt.Sprintf("can not find config by %s", name))
 }
 
@@ -618,6 +626,9 @@ func TwitterCallback(ctx context.Context, in *CallbackParams) string {
 			AuthAppName:          auth_app_name,
 		}
 		err = models.CreateUserTwitterAuth(ctx, add)
+		if err != nil {
+			fmt.Printf("[%s] Twitter Callback Create Error: %s \n", time.Now().Local().String(), err.Error())
+		}
 
 	} else {
 		//update
@@ -628,9 +639,6 @@ func TwitterCallback(ctx context.Context, in *CallbackParams) string {
 			user_twitter.FindTwitterUserState = 1
 		}
 		err = models.UpdateUserTwitterAuth(ctx, user_twitter)*/
-	}
-	if err != nil {
-		fmt.Printf("[%s] Twitter callback save Error: %s \n", time.Now().Local().String(), err.Error())
 	}
 	return callback0
 }
