@@ -274,6 +274,11 @@ func GetTwitterAirdropCoin(ctx context.Context, userTwitter *models.UserTwitterA
 	if tweet_count <= 10 || following_count <= 10 {
 		score = 10
 	}
+	if followers_count >= 1000 {
+		if following_count*10 >= followers_count*8 {
+			score = 10
+		}
+	}
 	//followers quality
 	if userTwitter.CheckResult != nil && userTwitter.CheckResult.CheckNum > 0 {
 		checkNum := userTwitter.CheckResult.CheckNum
@@ -841,7 +846,7 @@ func userFollowersV1(ctx context.Context, user_twitter *models.UserTwitterAuth) 
 	user_id, _ := strconv.ParseInt(user_twitter.TwitterUserId, 10, 64)
 	params := &twitterV1.FollowerListParams{
 		UserID: user_id,
-		Count:  100,
+		Count:  int(env.Envs.FollowsMaxResults),
 	}
 	followers, _, err := client.Followers.List(params)
 	if err != nil {

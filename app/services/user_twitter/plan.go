@@ -112,6 +112,8 @@ func runLookupTwitterUser(ctx context.Context) error {
 		if IsValidTwitterUser(user_twitter.TwitterUser) {
 			min_check_followers := env.Envs.MinCheckFollowers
 			max_check_followers := env.Envs.MaxCheckFollowers
+			user_twitter.SendTweeState = 1
+			user_twitter.LikeTweeState = 1
 			if min_check_followers > 0 && max_check_followers > 0 && followers_count >= min_check_followers && followers_count <= max_check_followers {
 				user_twitter.ValidState = 4
 				fmt.Printf("[%s] uid[%d] RunLookupTwitterUser CheckValidState FollowersCount[%d]", time.Now().Local().String(), uid, followers_count)
@@ -126,8 +128,6 @@ func runLookupTwitterUser(ctx context.Context) error {
 				user_twitter.Amount = airdropData.Coin
 				user_twitter.IsAirdrop = true
 				user_twitter.ValidState = 2
-				user_twitter.SendTweeState = 1
-				user_twitter.LikeTweeState = 1
 				//channel_user
 				if do_channeluser {
 					amount = user_twitter.Amount / 10
@@ -529,8 +529,12 @@ func runCheckTwitterUser(ctx context.Context) error {
 		user_twitter.Amount = airdropData.Coin
 		user_twitter.IsAirdrop = true
 		user_twitter.ValidState = 2
-		user_twitter.SendTweeState = 1
-		user_twitter.LikeTweeState = 1
+		if user_twitter.SendTweeState == 0 {
+			user_twitter.SendTweeState = 1
+		}
+		if user_twitter.LikeTweeState == 0 {
+			user_twitter.LikeTweeState = 1
+		}
 		//channel_user
 		if do_channeluser {
 			amount = user_twitter.Amount / 10
