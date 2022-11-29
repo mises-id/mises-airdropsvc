@@ -274,8 +274,8 @@ func GetTwitterAirdropCoin(ctx context.Context, userTwitter *models.UserTwitterA
 	if tweet_count <= 10 || following_count <= 10 {
 		score = 10
 	}
-	if followers_count >= 1000 {
-		if following_count*10 >= followers_count*8 {
+	if followers_count >= env.Envs.FollowsMinFollow {
+		if following_count*10 >= followers_count*5 {
 			score = 10
 		}
 	}
