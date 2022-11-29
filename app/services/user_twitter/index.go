@@ -13,9 +13,12 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
+	twitterV1 "github.com/dghubble/go-twitter/twitter"
+	"github.com/dghubble/oauth1"
 	"github.com/michimani/gotwi"
 	"github.com/michimani/gotwi/fields"
 	"github.com/michimani/gotwi/resources"
@@ -28,6 +31,7 @@ import (
 	"github.com/mises-id/mises-airdropsvc/app/models/enum"
 	"github.com/mises-id/mises-airdropsvc/config/env"
 	"github.com/mises-id/mises-airdropsvc/lib/codes"
+	"github.com/mises-id/mises-airdropsvc/lib/utils"
 	socialModel "github.com/mises-id/sns-socialsvc/app/models"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -36,12 +40,14 @@ const (
 	CallbackStateFlag            = "mises&=mises"
 	callbackBase                 = "https://api.alb.mises.site"
 	callbackPath                 = "api/v1/twitter/callback"
+	FollowV1Endpoint             = "https://api.twitter.com/1.1/friendships/create.json"
 	RequestTokenEndpoint         = "https://api.twitter.com/oauth/request_token"
 	AccessTokenEndpoint          = "https://api.twitter.com/oauth/access_token"
 	AuthEndpoint                 = "https://api.twitter.com/oauth/authorize"
 	OAuthVersion10               = "1.0"
 	OAuthSignatureMethodHMACSHA1 = "HMAC-SHA1"
 	oauth1header                 = `OAuth oauth_callback="%s",oauth_consumer_key="%s",oauth_nonce="%s",oauth_signature="%s",oauth_signature_method="%s",oauth_timestamp="%s",oauth_token="%s",oauth_version="%s"`
+	oauth1Userheader             = `OAuth oauth_consumer_key="%s",oauth_nonce="%s",oauth_signature="%s",oauth_signature_method="%s",oauth_timestamp="%s",oauth_token="%s",oauth_version="%s"`
 )
 
 var (
@@ -52,6 +58,7 @@ var (
 	targetTwitterId     = "1442753558311424001"
 	targetRetweetID     = "1591980699623776256"
 	validRegisterDate   string
+	defaultAuthAppName  = "v2.network"
 )
 
 type (
@@ -81,19 +88,75 @@ type (
 		Airdrop *models.Airdrop
 	}
 	CallbackParams struct {
-		OauthToken, OauthVerifier string
-		UserAgent                 *models.UserAgent
+		OauthToken, OauthVerifier, State string
+		UserAgent                        *models.UserAgent
 	}
 	GetTwitterAuthUrlParams struct {
 		UID      uint64
 		DeviceId string
 	}
+	AuthConfigParams struct {
+		name, key, secret string
+	}
+	RequestTokenParams struct {
+		callback    string
+		auth_config *AuthConfigParams
+	}
 )
 
 func init() {
-	OAuthConsumerKey = env.Envs.GOTWI_API_KEY
-	OAuthConsumerSecret = env.Envs.GOTWI_API_KEY_SECRET
+	/* OAuthConsumerKey = env.Envs.GOTWI_API_KEY
+	OAuthConsumerSecret = env.Envs.GOTWI_API_KEY_SECRET */
 	validRegisterDate = env.Envs.VALID_TWITTER_REGISTER_DATE
+}
+
+func getAuthConfigByRand() (*AuthConfigParams, error) {
+	config_list := getAuthConfigList()
+	num := len(config_list)
+	if num == 0 {
+		return nil, errors.New("no auth config")
+	}
+	if num == 1 {
+		return config_list[0], nil
+	}
+	index := utils.GetRand(1, 100) % num
+	return config_list[index], nil
+}
+
+func getAuthConfigByName(name string) (*AuthConfigParams, error) {
+	config_list := getAuthConfigList()
+	for _, v := range config_list {
+		if v.name == name {
+			return v, nil
+		}
+	}
+	return nil, errors.New(fmt.Sprintf("can not find config by %s", name))
+}
+
+func getAuthConfigList() []*AuthConfigParams {
+	name_list := env.Envs.TWI_APP_NAME_LIST
+	key_list := env.Envs.TWI_APP_KEY_LIST
+	secret_list := env.Envs.TWI_APP_SECRET_LIST
+	num := len(name_list)
+	if num == 0 || len(key_list) != num || len(secret_list) != num {
+		res := make([]*AuthConfigParams, 1)
+		res[0] = &AuthConfigParams{
+			name:   defaultAuthAppName,
+			key:    env.Envs.GOTWI_API_KEY,
+			secret: env.Envs.GOTWI_API_KEY_SECRET,
+		}
+		return res
+	}
+	res := make([]*AuthConfigParams, num)
+	for i := 0; i < num; i++ {
+		config := &AuthConfigParams{
+			name:   name_list[i],
+			key:    key_list[i],
+			secret: secret_list[i],
+		}
+		res[i] = config
+	}
+	return res
 }
 
 //get twitter auth url
@@ -106,10 +169,17 @@ func GetTwitterAuthUrl(ctx context.Context, in *GetTwitterAuthUrlParams) (string
 	}
 	baseUrl.Path = callbackPath
 	v := url.Values{}
-	v.Add("state", fmt.Sprintf("%d%s%s", uid, CallbackStateFlag, device_id))
+	auth_config, err := getAuthConfigByRand()
+	if err != nil {
+		return "", err
+	}
+	rqi := &RequestTokenParams{
+		auth_config: auth_config,
+	}
+	v.Add("state", fmt.Sprintf("%d%s%s%s%s", uid, CallbackStateFlag, device_id, CallbackStateFlag, auth_config.name))
 	baseUrl.RawQuery = v.Encode()
-	callback := baseUrl.String()
-	auth, err := RequestToken(ctx, callback)
+	rqi.callback = baseUrl.String()
+	auth, err := RequestToken(ctx, rqi)
 	if err != nil {
 		return "", err
 	}
@@ -228,11 +298,21 @@ func GetTwitterAirdropCoin(ctx context.Context, userTwitter *models.UserTwitterA
 }
 
 //send tweet
-func sendTweet(ctx context.Context, user_twitter *models.UserTwitterAuth, tweet string) error {
+func sendTweetV2(ctx context.Context, user_twitter *models.UserTwitterAuth, tweet string) error {
 
 	if user_twitter.OauthToken == "" || user_twitter.OauthTokenSecret == "" {
 		return codes.ErrForbidden.Newf("OAuthToken and OAuthTokenSecret is required")
 	}
+	auth_app_name := user_twitter.AuthAppName
+	if auth_app_name == "" {
+		auth_app_name = defaultAuthAppName
+	}
+	auth_config, err := getAuthConfigByName(auth_app_name)
+	if err != nil {
+		return err
+	}
+	key := auth_config.key
+	secret := auth_config.secret
 	transport := &http.Transport{Proxy: setProxy()}
 	client := &http.Client{Transport: transport}
 	in := &gotwi.NewGotwiClientInput{
@@ -240,6 +320,8 @@ func sendTweet(ctx context.Context, user_twitter *models.UserTwitterAuth, tweet 
 		AuthenticationMethod: gotwi.AuthenMethodOAuth1UserContext,
 		OAuthToken:           user_twitter.OauthToken,
 		OAuthTokenSecret:     user_twitter.OauthTokenSecret,
+		OAuthConsumerKey:     key,
+		OAuthConsumerSecret:  secret,
 	}
 	twitter_client, err := gotwi.NewGotwiClient(in)
 	if err != nil {
@@ -254,11 +336,21 @@ func sendTweet(ctx context.Context, user_twitter *models.UserTwitterAuth, tweet 
 }
 
 //retweet
-func reTweet(ctx context.Context, user_twitter *models.UserTwitterAuth) error {
+func reTweetV2(ctx context.Context, user_twitter *models.UserTwitterAuth) error {
 
 	if user_twitter.OauthToken == "" || user_twitter.OauthTokenSecret == "" {
 		return codes.ErrForbidden.Newf("OAuthToken and OAuthTokenSecret is required")
 	}
+	auth_app_name := user_twitter.AuthAppName
+	if auth_app_name == "" {
+		auth_app_name = defaultAuthAppName
+	}
+	auth_config, err := getAuthConfigByName(auth_app_name)
+	if err != nil {
+		return err
+	}
+	key := auth_config.key
+	secret := auth_config.secret
 	transport := &http.Transport{Proxy: setProxy()}
 	client := &http.Client{Transport: transport}
 	in := &gotwi.NewGotwiClientInput{
@@ -266,6 +358,8 @@ func reTweet(ctx context.Context, user_twitter *models.UserTwitterAuth) error {
 		AuthenticationMethod: gotwi.AuthenMethodOAuth1UserContext,
 		OAuthToken:           user_twitter.OauthToken,
 		OAuthTokenSecret:     user_twitter.OauthTokenSecret,
+		OAuthConsumerKey:     key,
+		OAuthConsumerSecret:  secret,
 	}
 	twitter_client, err := gotwi.NewGotwiClient(in)
 	if err != nil {
@@ -286,6 +380,16 @@ func replyTweet(ctx context.Context, user_twitter *models.UserTwitterAuth, reply
 	if user_twitter.OauthToken == "" || user_twitter.OauthTokenSecret == "" {
 		return codes.ErrForbidden.Newf("OAuthToken and OAuthTokenSecret is required")
 	}
+	auth_app_name := user_twitter.AuthAppName
+	if auth_app_name == "" {
+		auth_app_name = defaultAuthAppName
+	}
+	auth_config, err := getAuthConfigByName(auth_app_name)
+	if err != nil {
+		return err
+	}
+	key := auth_config.key
+	secret := auth_config.secret
 	transport := &http.Transport{Proxy: setProxy()}
 	client := &http.Client{Transport: transport}
 	in := &gotwi.NewGotwiClientInput{
@@ -293,6 +397,8 @@ func replyTweet(ctx context.Context, user_twitter *models.UserTwitterAuth, reply
 		AuthenticationMethod: gotwi.AuthenMethodOAuth1UserContext,
 		OAuthToken:           user_twitter.OauthToken,
 		OAuthTokenSecret:     user_twitter.OauthTokenSecret,
+		OAuthConsumerKey:     key,
+		OAuthConsumerSecret:  secret,
 	}
 	twitter_client, err := gotwi.NewGotwiClient(in)
 	if err != nil {
@@ -310,11 +416,21 @@ func replyTweet(ctx context.Context, user_twitter *models.UserTwitterAuth, reply
 }
 
 //like tweet
-func likeTweet(ctx context.Context, user_twitter *models.UserTwitterAuth) error {
+func likeTweetV2(ctx context.Context, user_twitter *models.UserTwitterAuth) error {
 
 	if user_twitter.OauthToken == "" || user_twitter.OauthTokenSecret == "" {
 		return codes.ErrForbidden.Newf("OAuthToken and OAuthTokenSecret is required")
 	}
+	auth_app_name := user_twitter.AuthAppName
+	if auth_app_name == "" {
+		auth_app_name = defaultAuthAppName
+	}
+	auth_config, err := getAuthConfigByName(auth_app_name)
+	if err != nil {
+		return err
+	}
+	key := auth_config.key
+	secret := auth_config.secret
 	transport := &http.Transport{Proxy: setProxy()}
 	client := &http.Client{Transport: transport}
 	in := &gotwi.NewGotwiClientInput{
@@ -322,6 +438,8 @@ func likeTweet(ctx context.Context, user_twitter *models.UserTwitterAuth) error 
 		AuthenticationMethod: gotwi.AuthenMethodOAuth1UserContext,
 		OAuthToken:           user_twitter.OauthToken,
 		OAuthTokenSecret:     user_twitter.OauthTokenSecret,
+		OAuthConsumerKey:     key,
+		OAuthConsumerSecret:  secret,
 	}
 	twitter_client, err := gotwi.NewGotwiClient(in)
 	if err != nil {
@@ -336,42 +454,24 @@ func likeTweet(ctx context.Context, user_twitter *models.UserTwitterAuth) error 
 	return err
 }
 
-//user followers
-func userFollowers(ctx context.Context, user_twitter *models.UserTwitterAuth) (*usersType.FollowsFollowersResponse, error) {
-	if user_twitter.OauthToken == "" || user_twitter.OauthTokenSecret == "" {
-		return nil, codes.ErrForbidden.Newf("OAuthToken and OAuthTokenSecret is required")
-	}
-	transport := &http.Transport{Proxy: setProxy()}
-	client := &http.Client{Transport: transport}
-	in := &gotwi.NewGotwiClientInput{
-		HTTPClient:           client,
-		AuthenticationMethod: gotwi.AuthenMethodOAuth1UserContext,
-		OAuthToken:           user_twitter.OauthToken,
-		OAuthTokenSecret:     user_twitter.OauthTokenSecret,
-	}
-	twitter_client, err := gotwi.NewGotwiClient(in)
-	if err != nil {
-		return nil, err
-	}
-	params := &usersType.FollowsFollowersParams{
-		ID:         user_twitter.TwitterUserId,
-		MaxResults: usersType.FollowsMaxResults(env.Envs.FollowsMaxResults),
-		UserFields: fields.UserFieldList{
-			fields.UserFieldCreatedAt,
-			fields.UserFieldPublicMetrics,
-		},
-	}
-	return users.FollowsFollowers(ctx, twitter_client, params)
-}
-
 //apiFollowTwitterUser
-func apiFollowTwitterUser(ctx context.Context, user_twitter *models.UserTwitterAuth, target_user_id string) error {
+func followTwitterUserV2(ctx context.Context, user_twitter *models.UserTwitterAuth, target_user_id string) error {
 	if user_twitter == nil {
 		return errors.New("user_twitter is null")
 	}
 	if user_twitter.OauthToken == "" || user_twitter.OauthTokenSecret == "" {
 		return codes.ErrForbidden.Newf("OAuthToken and OAuthTokenSecret is required")
 	}
+	auth_app_name := user_twitter.AuthAppName
+	if auth_app_name == "" {
+		auth_app_name = defaultAuthAppName
+	}
+	auth_config, err := getAuthConfigByName(auth_app_name)
+	if err != nil {
+		return err
+	}
+	key := auth_config.key
+	secret := auth_config.secret
 	transport := &http.Transport{Proxy: setProxy()}
 	client := &http.Client{Transport: transport}
 	in := &gotwi.NewGotwiClientInput{
@@ -379,6 +479,8 @@ func apiFollowTwitterUser(ctx context.Context, user_twitter *models.UserTwitterA
 		AuthenticationMethod: gotwi.AuthenMethodOAuth1UserContext,
 		OAuthToken:           user_twitter.OauthToken,
 		OAuthTokenSecret:     user_twitter.OauthTokenSecret,
+		OAuthConsumerKey:     key,
+		OAuthConsumerSecret:  secret,
 	}
 	twitter_client, err := gotwi.NewGotwiClient(in)
 	if err != nil {
@@ -415,15 +517,44 @@ func getTwitterCallbackUrl(code, username, misesid string) string {
 }
 
 //twitter auth callback
-func TwitterCallback(ctx context.Context, uid uint64, in *CallbackParams) string {
+func TwitterCallback(ctx context.Context, in *CallbackParams) string {
 
 	var (
 		callback0 string = getTwitterCallbackUrl("0", "", "")
 		callback1 string = getTwitterCallbackUrl("1", "", "")
 		callback2 string = getTwitterCallbackUrl("2", "", "")
 	)
+	state := in.State
 	oauth_token := in.OauthToken
 	oauth_verifier := in.OauthVerifier
+	stateArr := strings.Split(in.State, CallbackStateFlag)
+	stateArrlen := len(stateArr)
+	if stateArrlen < 2 {
+		fmt.Printf("[%s] Callback State[%s] Invalid \n", time.Now().Local().String(), state)
+		return callback2
+	}
+	//uid
+	uid, _ := strconv.ParseUint(stateArr[0], 10, 64)
+	if uid == 0 {
+		fmt.Printf("[%s] Callback State[%s] User Invalid \n", time.Now().Local().String(), state)
+		return callback2
+	}
+	//device_id
+	device_id := stateArr[1]
+	if in.UserAgent != nil {
+		in.UserAgent.DeviceId = device_id
+	}
+	//auth_app_name
+	auth_app_name := defaultAuthAppName
+	if stateArrlen > 2 {
+		state_auth_app_name := stateArr[2]
+		_, err := getAuthConfigByName(state_auth_app_name)
+		if err != nil {
+			fmt.Printf("[%s] Callback State[%s] AppName Invalid \n", time.Now().Local().String(), state)
+			return callback2
+		}
+		auth_app_name = state_auth_app_name
+	}
 	if oauth_token == "" || oauth_verifier == "" {
 		fmt.Printf("[%s] Oauth_token[%s],oauth_verifier[%s] Empty \n", time.Now().Local().String(), oauth_token, oauth_verifier)
 		return callback2
@@ -484,49 +615,24 @@ func TwitterCallback(ctx context.Context, uid uint64, in *CallbackParams) string
 			OauthToken:           oauth_token_new,
 			OauthTokenSecret:     oauth_token_secret,
 			UserAgent:            in.UserAgent,
+			AuthAppName:          auth_app_name,
 		}
 		err = models.CreateUserTwitterAuth(ctx, add)
 
 	} else {
 		//update
-		user_twitter.OauthToken = oauth_token_new
+		/*user_twitter.OauthToken = oauth_token_new
 		user_twitter.OauthTokenSecret = oauth_token_secret
-		/* if airdrop == nil && user_twitter.ValidState != 3 {
+		 if airdrop == nil && user_twitter.ValidState != 3 {
 			user_twitter.TwitterUserId = twitter_user_id
 			user_twitter.FindTwitterUserState = 1
-		} */
-		err = models.UpdateUserTwitterAuth(ctx, user_twitter)
+		}
+		err = models.UpdateUserTwitterAuth(ctx, user_twitter)*/
 	}
 	if err != nil {
 		fmt.Printf("[%s] Twitter callback save Error: %s \n", time.Now().Local().String(), err.Error())
 	}
 	return callback0
-}
-
-func getTwitterUserById(ctx context.Context, twitter_user_id string) (*resources.User, error) {
-	transport := &http.Transport{Proxy: setProxy()}
-	client := &http.Client{Transport: transport}
-	in := &gotwi.NewGotwiClientInput{
-		HTTPClient:           client,
-		AuthenticationMethod: gotwi.AuthenMethodOAuth2BearerToken,
-	}
-	twitter_client, err := gotwi.NewGotwiClient(in)
-	if err != nil {
-		return nil, err
-	}
-	params := &types.UserLookupIDParams{
-		ID: twitter_user_id,
-		UserFields: fields.UserFieldList{
-			fields.UserFieldCreatedAt,
-			fields.UserFieldPublicMetrics,
-		},
-	}
-	tr, err := users.UserLookupID(ctx, twitter_client, params)
-	if err != nil {
-		fmt.Println("User look up id error: ", err.Error())
-		return nil, err
-	}
-	return &tr.Data, nil
 }
 
 func setProxy() func(*http.Request) (*url.URL, error) {
@@ -537,7 +643,13 @@ func setProxy() func(*http.Request) (*url.URL, error) {
 }
 
 //get twitter auth request_token
-func RequestToken(ctx context.Context, callback string) (string, error) {
+func RequestToken(ctx context.Context, rqin *RequestTokenParams) (string, error) {
+	if rqin == nil {
+		return "", errors.New("RequestTokenParams is null")
+	}
+	callback := rqin.callback
+	key := rqin.auth_config.key
+	secret := rqin.auth_config.secret
 	api := fmt.Sprintf("%s?oauth_callback=%s", RequestTokenEndpoint, callback)
 	transport := &http.Transport{Proxy: setProxy()}
 	client := &http.Client{Transport: transport}
@@ -545,12 +657,13 @@ func RequestToken(ctx context.Context, callback string) (string, error) {
 	ParameterMap := map[string]string{
 		"oauth_callback": callback,
 	}
+	siginkey := fmt.Sprintf("%s&%s", secret, "")
 	in := &CreateOAuthSignatureInput{
 		HTTPMethod:       req.Method,
 		RawEndpoint:      req.URL.String(),
-		OAuthConsumerKey: OAuthConsumerKey,
-		OAuthToken:       OAuthToken,
-		SigningKey:       getSignKey(),
+		OAuthConsumerKey: key,
+		OAuthToken:       "",
+		SigningKey:       siginkey,
 		ParameterMap:     ParameterMap,
 	}
 	out, err := CreateOAuthSignature(in)
@@ -559,7 +672,7 @@ func RequestToken(ctx context.Context, callback string) (string, error) {
 	}
 	auth := fmt.Sprintf(oauth1header,
 		url.QueryEscape(callback),
-		url.QueryEscape(OAuthConsumerKey),
+		url.QueryEscape(key),
 		url.QueryEscape(out.OAuthNonce),
 		url.QueryEscape(out.OAuthSignature),
 		url.QueryEscape(out.OAuthSignatureMethod),
@@ -576,10 +689,273 @@ func RequestToken(ctx context.Context, callback string) (string, error) {
 		return "", errors.New(res.Status)
 	}
 	defer res.Body.Close()
-
 	body, _ := ioutil.ReadAll(res.Body)
-
 	return string(body), nil
+}
+
+//v1
+func reTweetV1(ctx context.Context, user_twitter *models.UserTwitterAuth) error {
+	if user_twitter == nil || user_twitter.TwitterUser == nil {
+		return errors.New("Twitter User is null")
+	}
+	tweet_id, _ := strconv.ParseInt(targetRetweetID, 10, 64)
+	auth_app_name := user_twitter.AuthAppName
+	if auth_app_name == "" {
+		auth_app_name = defaultAuthAppName
+	}
+	auth_config, err := getAuthConfigByName(auth_app_name)
+	if err != nil {
+		return err
+	}
+	key := auth_config.key
+	secret := auth_config.secret
+	config := oauth1.NewConfig(key, secret)
+	token := oauth1.NewToken(user_twitter.OauthToken, user_twitter.OauthTokenSecret)
+	httpClient := config.Client(oauth1.NoContext, token)
+	client := twitterV1.NewClient(httpClient)
+	params := &twitterV1.StatusRetweetParams{
+		ID: tweet_id,
+	}
+	_, _, err = client.Statuses.Retweet(tweet_id, params)
+	return err
+}
+
+//v1 like
+func likeTweetV1(ctx context.Context, user_twitter *models.UserTwitterAuth) error {
+	if user_twitter == nil || user_twitter.TwitterUser == nil {
+		return errors.New("Twitter User is null")
+	}
+	tweet_id, _ := strconv.ParseInt(targetRetweetID, 10, 64)
+	auth_app_name := user_twitter.AuthAppName
+	if auth_app_name == "" {
+		auth_app_name = defaultAuthAppName
+	}
+	auth_config, err := getAuthConfigByName(auth_app_name)
+	if err != nil {
+		return err
+	}
+	key := auth_config.key
+	secret := auth_config.secret
+	config := oauth1.NewConfig(key, secret)
+	token := oauth1.NewToken(user_twitter.OauthToken, user_twitter.OauthTokenSecret)
+	httpClient := config.Client(oauth1.NoContext, token)
+	client := twitterV1.NewClient(httpClient)
+	params := &twitterV1.FavoriteCreateParams{
+		ID: tweet_id,
+	}
+	_, _, err = client.Favorites.Create(params)
+	return err
+}
+
+//user followers
+func userFollowersV2(ctx context.Context, user_twitter *models.UserTwitterAuth) ([]*models.TwitterUser, error) {
+	if user_twitter.OauthToken == "" || user_twitter.OauthTokenSecret == "" {
+		return nil, codes.ErrForbidden.Newf("OAuthToken and OAuthTokenSecret is required")
+	}
+	auth_app_name := user_twitter.AuthAppName
+	if auth_app_name == "" {
+		auth_app_name = defaultAuthAppName
+	}
+	auth_config, err := getAuthConfigByName(auth_app_name)
+	if err != nil {
+		return nil, err
+	}
+	key := auth_config.key
+	secret := auth_config.secret
+	transport := &http.Transport{Proxy: setProxy()}
+	client := &http.Client{Transport: transport}
+	in := &gotwi.NewGotwiClientInput{
+		HTTPClient:           client,
+		AuthenticationMethod: gotwi.AuthenMethodOAuth1UserContext,
+		OAuthToken:           user_twitter.OauthToken,
+		OAuthTokenSecret:     user_twitter.OauthTokenSecret,
+		OAuthConsumerKey:     key,
+		OAuthConsumerSecret:  secret,
+	}
+	twitter_client, err := gotwi.NewGotwiClient(in)
+	if err != nil {
+		return nil, err
+	}
+	params := &usersType.FollowsFollowersParams{
+		ID:         user_twitter.TwitterUserId,
+		MaxResults: usersType.FollowsMaxResults(env.Envs.FollowsMaxResults),
+		UserFields: fields.UserFieldList{
+			fields.UserFieldCreatedAt,
+			fields.UserFieldPublicMetrics,
+		},
+	}
+	followers, err := users.FollowsFollowers(ctx, twitter_client, params)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]*models.TwitterUser, len(followers.Data))
+	for i, follower := range followers.Data {
+		res[i] = buildV2User(&follower)
+	}
+	return res, nil
+}
+
+func buildV2User(twitter_user *resources.User) *models.TwitterUser {
+	if twitter_user == nil {
+		return nil
+	}
+	user := &models.TwitterUser{
+		TwitterUserId:  *twitter_user.ID,
+		UserName:       *twitter_user.Username,
+		Name:           *twitter_user.Name,
+		CreatedAt:      *twitter_user.CreatedAt,
+		FollowersCount: uint64(*twitter_user.PublicMetrics.FollowersCount),
+		FollowingCount: uint64(*twitter_user.PublicMetrics.FollowingCount),
+		TweetCount:     uint64(*twitter_user.PublicMetrics.TweetCount),
+	}
+	return user
+}
+
+//v1 followers
+func userFollowersV1(ctx context.Context, user_twitter *models.UserTwitterAuth) ([]*models.TwitterUser, error) {
+	if user_twitter == nil || user_twitter.TwitterUser == nil {
+		return nil, errors.New("Twitter User is null")
+	}
+	auth_app_name := user_twitter.AuthAppName
+	if auth_app_name == "" {
+		auth_app_name = defaultAuthAppName
+	}
+	auth_config, err := getAuthConfigByName(auth_app_name)
+	if err != nil {
+		return nil, err
+	}
+	key := auth_config.key
+	secret := auth_config.secret
+	config := oauth1.NewConfig(key, secret)
+	token := oauth1.NewToken(user_twitter.OauthToken, user_twitter.OauthTokenSecret)
+	httpClient := config.Client(oauth1.NoContext, token)
+	client := twitterV1.NewClient(httpClient)
+	user_id, _ := strconv.ParseInt(user_twitter.TwitterUserId, 10, 64)
+	params := &twitterV1.FollowerListParams{
+		UserID: user_id,
+		Count:  100,
+	}
+	followers, _, err := client.Followers.List(params)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]*models.TwitterUser, len(followers.Users))
+	for i, twitter_user := range followers.Users {
+		res[i] = buildV1User(&twitter_user)
+	}
+	return res, nil
+}
+
+func buildV1User(twitter_user *twitterV1.User) *models.TwitterUser {
+	if twitter_user == nil {
+		return nil
+	}
+	ct, _ := time.Parse(time.RubyDate, twitter_user.CreatedAt)
+	user := &models.TwitterUser{
+		TwitterUserId:  strconv.Itoa(int(twitter_user.ID)),
+		UserName:       twitter_user.ScreenName,
+		Name:           twitter_user.Name,
+		CreatedAt:      ct,
+		FollowersCount: uint64(twitter_user.FollowersCount),
+		FollowingCount: uint64(*&twitter_user.FriendsCount),
+		TweetCount:     uint64(twitter_user.StatusesCount),
+	}
+	return user
+}
+
+func lookupTwitterUserV2(ctx context.Context, user_twitter *models.UserTwitterAuth) (*models.TwitterUser, error) {
+	auth_app_name := user_twitter.AuthAppName
+	if auth_app_name == "" {
+		auth_app_name = defaultAuthAppName
+	}
+	auth_config, err := getAuthConfigByName(auth_app_name)
+	if err != nil {
+		return nil, err
+	}
+	key := auth_config.key
+	secret := auth_config.secret
+	transport := &http.Transport{Proxy: setProxy()}
+	client := &http.Client{Transport: transport}
+	in := &gotwi.NewGotwiClientInput{
+		HTTPClient:           client,
+		AuthenticationMethod: gotwi.AuthenMethodOAuth2BearerToken,
+		OAuthConsumerKey:     key,
+		OAuthConsumerSecret:  secret,
+	}
+	twitter_client, err := gotwi.NewGotwiClient(in)
+	if err != nil {
+		return nil, err
+	}
+	params := &types.UserLookupIDParams{
+		ID: user_twitter.TwitterUserId,
+		UserFields: fields.UserFieldList{
+			fields.UserFieldCreatedAt,
+			fields.UserFieldPublicMetrics,
+		},
+	}
+	tr, err := users.UserLookupID(ctx, twitter_client, params)
+	if err != nil {
+		return nil, err
+	}
+	return buildV2User(&tr.Data), nil
+}
+
+//v1 lookup
+func lookupTwitterUserV1(ctx context.Context, user_twitter *models.UserTwitterAuth) (*models.TwitterUser, error) {
+	user_id, _ := strconv.ParseInt(user_twitter.TwitterUserId, 10, 64)
+	auth_app_name := user_twitter.AuthAppName
+	if auth_app_name == "" {
+		auth_app_name = defaultAuthAppName
+	}
+	auth_config, err := getAuthConfigByName(auth_app_name)
+	if err != nil {
+		return nil, err
+	}
+	key := auth_config.key
+	secret := auth_config.secret
+	config := oauth1.NewConfig(key, secret)
+	token := oauth1.NewToken("", "")
+	httpClient := config.Client(oauth1.NoContext, token)
+	client := twitterV1.NewClient(httpClient)
+	params := &twitterV1.UserLookupParams{
+		UserID: []int64{user_id},
+	}
+	users, _, err := client.Users.Lookup(params)
+	if err != nil {
+		return nil, err
+	}
+	if len(users) == 0 {
+		return nil, errors.New("Lookup User is empty")
+	}
+	twitter_user := users[0]
+	return buildV1User(&twitter_user), nil
+}
+
+//v1
+func followTwitterUserV1(ctx context.Context, user_twitter *models.UserTwitterAuth, twitter_user_id string) error {
+	if user_twitter == nil || user_twitter.TwitterUser == nil {
+		return errors.New("Twitter User is null")
+	}
+	user_id, _ := strconv.ParseInt(twitter_user_id, 10, 64)
+	auth_app_name := user_twitter.AuthAppName
+	if auth_app_name == "" {
+		auth_app_name = defaultAuthAppName
+	}
+	auth_config, err := getAuthConfigByName(auth_app_name)
+	if err != nil {
+		return err
+	}
+	key := auth_config.key
+	secret := auth_config.secret
+	config := oauth1.NewConfig(key, secret)
+	token := oauth1.NewToken(user_twitter.OauthToken, user_twitter.OauthTokenSecret)
+	httpClient := config.Client(oauth1.NoContext, token)
+	client := twitterV1.NewClient(httpClient)
+	params := &twitterV1.FriendshipCreateParams{
+		UserID: user_id,
+	}
+	_, _, err = client.Friendships.Create(params)
+	return err
 }
 
 func AccessToken(ctx context.Context, oauth_token, oauth_verifier string) (string, error) {
@@ -601,10 +977,6 @@ func AccessToken(ctx context.Context, oauth_token, oauth_verifier string) (strin
 
 	body, _ := ioutil.ReadAll(res.Body)
 	return string(body), nil
-}
-
-func getSignKey() string {
-	return fmt.Sprintf("%s&%s", OAuthConsumerSecret, OAuthTokenSecret)
 }
 
 func CreateOAuthSignature(in *CreateOAuthSignatureInput) (*CreateOAuthSignatureOutput, error) {

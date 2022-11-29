@@ -32,6 +32,7 @@ type (
 		MinFollower          int
 		MaxFollower          int
 		DeviceId             string
+		AuthAppName          string
 		//sort
 		SortKey  string
 		SortBy   string
@@ -89,6 +90,9 @@ func (params *UserTwitterAuthSearch) BuildSearchParams(chain *odm.DB) *odm.DB {
 	}
 	if params.DeviceId != "" {
 		chain = chain.Where(bson.M{"user_agent.device_id": params.DeviceId})
+	}
+	if params.AuthAppName != "" {
+		chain = chain.Where(bson.M{"auth_app_name": params.AuthAppName})
 	}
 	if params.FindTwitterUserState > 0 {
 		chain = chain.Where(bson.M{"find_twitter_user_state": params.FindTwitterUserState})

@@ -756,6 +756,12 @@ func DecodeHTTPTwitterFollowZeroRequest(_ context.Context, r *http.Request) (int
 	queryParams := r.URL.Query()
 	_ = queryParams
 
+	if NameTwitterFollowStrArr, ok := queryParams["name"]; ok {
+		NameTwitterFollowStr := NameTwitterFollowStrArr[0]
+		NameTwitterFollow := NameTwitterFollowStr
+		req.Name = NameTwitterFollow
+	}
+
 	return &req, err
 }
 
@@ -791,6 +797,12 @@ func DecodeHTTPTwitterFollowOneRequest(_ context.Context, r *http.Request) (inte
 
 	queryParams := r.URL.Query()
 	_ = queryParams
+
+	if NameTwitterFollowStrArr, ok := queryParams["name"]; ok {
+		NameTwitterFollowStr := NameTwitterFollowStrArr[0]
+		NameTwitterFollow := NameTwitterFollowStr
+		req.Name = NameTwitterFollow
+	}
 
 	return &req, err
 }
@@ -900,6 +912,12 @@ func DecodeHTTPSendTweetZeroRequest(_ context.Context, r *http.Request) (interfa
 	queryParams := r.URL.Query()
 	_ = queryParams
 
+	if NameSendTweetStrArr, ok := queryParams["name"]; ok {
+		NameSendTweetStr := NameSendTweetStrArr[0]
+		NameSendTweet := NameSendTweetStr
+		req.Name = NameSendTweet
+	}
+
 	return &req, err
 }
 
@@ -935,6 +953,12 @@ func DecodeHTTPSendTweetOneRequest(_ context.Context, r *http.Request) (interfac
 
 	queryParams := r.URL.Query()
 	_ = queryParams
+
+	if NameSendTweetStrArr, ok := queryParams["name"]; ok {
+		NameSendTweetStr := NameSendTweetStrArr[0]
+		NameSendTweet := NameSendTweetStr
+		req.Name = NameSendTweet
+	}
 
 	return &req, err
 }

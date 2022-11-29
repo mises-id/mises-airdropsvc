@@ -1008,6 +1008,8 @@ func EncodeHTTPTwitterFollowZeroRequest(_ context.Context, r *http.Request, requ
 	var tmp []byte
 	_ = tmp
 
+	values.Add("name", fmt.Sprint(req.Name))
+
 	r.URL.RawQuery = values.Encode()
 	return nil
 }
@@ -1041,6 +1043,8 @@ func EncodeHTTPTwitterFollowOneRequest(_ context.Context, r *http.Request, reque
 	values := r.URL.Query()
 	var tmp []byte
 	_ = tmp
+
+	values.Add("name", fmt.Sprint(req.Name))
 
 	r.URL.RawQuery = values.Encode()
 	return nil
@@ -1146,6 +1150,8 @@ func EncodeHTTPSendTweetZeroRequest(_ context.Context, r *http.Request, request 
 	var tmp []byte
 	_ = tmp
 
+	values.Add("name", fmt.Sprint(req.Name))
+
 	r.URL.RawQuery = values.Encode()
 	return nil
 }
@@ -1179,6 +1185,8 @@ func EncodeHTTPSendTweetOneRequest(_ context.Context, r *http.Request, request i
 	values := r.URL.Query()
 	var tmp []byte
 	_ = tmp
+
+	values.Add("name", fmt.Sprint(req.Name))
 
 	r.URL.RawQuery = values.Encode()
 	return nil

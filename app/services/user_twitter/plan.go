@@ -54,11 +54,20 @@ func runLookupTwitterUser(ctx context.Context) error {
 			continue
 		}
 		uid := user_twitter.UID
-		twitter_user, err := getTwitterUserById(ctx, user_twitter.TwitterUserId)
+		var err error
+		var twitter_user *models.TwitterUser
+		auth_app_name := user_twitter.AuthAppName
+		if auth_app_name == "" || auth_app_name == defaultAuthAppName {
+			//v2
+			twitter_user, err = lookupTwitterUserV2(ctx, user_twitter)
+		} else {
+			//v1
+			twitter_user, err = lookupTwitterUserV1(ctx, user_twitter)
+		}
 		if err != nil {
 			fmt.Printf("[%s] uid[%d] RunLookupTwitterUser GetTwitterUserById Error:%s \n", time.Now().Local().String(), uid, err.Error())
 			user_twitter.FindTwitterUserState = 3
-			if strings.Contains(err.Error(), "httpStatusCode=401") {
+			if strings.Contains(err.Error(), "httpStatusCode=401") || strings.Contains(err.Error(), "Invalid or expired token") {
 				//user_twitter.FindTwitterUserState = 4
 				//delete
 				models.DeleteUserTwitterAuthByID(ctx, user_twitter.ID)
@@ -67,16 +76,7 @@ func runLookupTwitterUser(ctx context.Context) error {
 			models.UpdateUserTwitterAuthFindState(ctx, user_twitter)
 			continue
 		}
-		TwitterUser := &models.TwitterUser{
-			TwitterUserId:  *twitter_user.ID,
-			UserName:       *twitter_user.Username,
-			Name:           *twitter_user.Name,
-			CreatedAt:      *twitter_user.CreatedAt,
-			FollowersCount: uint64(*twitter_user.PublicMetrics.FollowersCount),
-			FollowingCount: uint64(*twitter_user.PublicMetrics.FollowingCount),
-			TweetCount:     uint64(*twitter_user.PublicMetrics.TweetCount),
-		}
-		user_twitter.TwitterUser = TwitterUser
+		user_twitter.TwitterUser = twitter_user
 		//follow
 		user_twitter.FollowState = 1
 		channel_user, err := models.FindChannelUserByUID(ctx, uid)
@@ -155,19 +155,27 @@ func runLookupTwitterUser(ctx context.Context) error {
 	return nil
 }
 
-func PlanSendTweet(ctx context.Context) error {
-	fmt.Printf("[%s] RunSendTweet Start\n", time.Now().Local().String())
-	err := runSendTweet(ctx)
+type PlanSendTweetParams struct {
+	AuthAppName string
+}
+
+func PlanSendTweet(ctx context.Context, in *PlanSendTweetParams) error {
+	fmt.Printf("[%s] RunSendTweet Start \n", time.Now().Local().String())
+	err := runSendTweet(ctx, in)
 	fmt.Printf("[%s] RunSendTweet End\n", time.Now().Local().String())
 	return err
 }
 
-func runSendTweet(ctx context.Context) error {
+func runSendTweet(ctx context.Context, in *PlanSendTweetParams) error {
 	//get list
+	auth_app_name := defaultAuthAppName
+	if in != nil {
+		auth_app_name = in.AuthAppName
+	}
 	params := &search.UserTwitterAuthSearch{
 		SendTweetState: 1,
-		MinFollower:    100,
-		SortBy:         "followers_count_sort",
+		AuthAppName:    auth_app_name,
+		SortBy:         followerSortOrIDAsc(),
 		ListNum:        int64(sendTweetNum),
 	}
 	user_twitter_list, err := models.ListUserTwitterAuth(ctx, params)
@@ -178,35 +186,31 @@ func runSendTweet(ctx context.Context) error {
 	if num <= 0 {
 		return nil
 	}
-	fmt.Printf("[%s] RunSendTweet %d \n", time.Now().Local().String(), num)
+	fmt.Printf("[%s] RunSendTweet: %d,AuthAppName: %s\n", time.Now().Local().String(), num, auth_app_name)
 	//do list
 	for _, user_twitter := range user_twitter_list {
 		uid := user_twitter.UID
 		user_twitter.SendTweeState = 2
-		if err := reTweet(ctx, user_twitter); err != nil {
-			fmt.Printf("[%s] uid[%d] Send Tweet Error:%s \n", time.Now().Local().String(), uid, err.Error())
+		var err error
+		auth_app_name := user_twitter.AuthAppName
+		if auth_app_name == "" || auth_app_name == defaultAuthAppName {
+			//v2
+			err = reTweetV2(ctx, user_twitter)
+		} else {
+			//v1
+			err = reTweetV1(ctx, user_twitter)
+		}
+		if err != nil {
+			fmt.Printf("[%s] uid[%d] AuthAppName[%s] Send Tweet Error:%s \n", time.Now().Local().String(), uid, auth_app_name, err.Error())
 			user_twitter.SendTweeState = 3
-			if strings.Contains(err.Error(), "httpStatusCode=401") {
+			if strings.Contains(err.Error(), "327") {
+				user_twitter.SendTweeState = 2
+			}
+			if strings.Contains(err.Error(), "httpStatusCode=401") || strings.Contains(err.Error(), "Invalid or expired token") {
 				user_twitter.SendTweeState = 4
 			}
 			if strings.Contains(err.Error(), "httpStatusCode=429") {
 				user_twitter.SendTweeState = 5
-			}
-		}
-		//like tweet
-		user_twitter.LikeTweeState = 2
-		if user_twitter.SendTweeState == 4 {
-			user_twitter.LikeTweeState = 4
-		} else {
-			if err := likeTweet(ctx, user_twitter); err != nil {
-				fmt.Printf("[%s] uid[%d] Like Tweet Error:%s \n", time.Now().Local().String(), uid, err.Error())
-				user_twitter.LikeTweeState = 3
-				if strings.Contains(err.Error(), "httpStatusCode=401") {
-					user_twitter.LikeTweeState = 4
-				}
-				if strings.Contains(err.Error(), "httpStatusCode=429") {
-					user_twitter.LikeTweeState = 5
-				}
 			}
 		}
 		if err := models.UpdateUserTwitterAuthSendTweet(ctx, user_twitter); err != nil {
@@ -216,12 +220,10 @@ func runSendTweet(ctx context.Context) error {
 		if user_twitter.SendTweeState == 2 {
 			fmt.Printf("[%s] uid[%d] RunSendTweet Success \n", time.Now().Local().String(), uid)
 		}
-		if user_twitter.LikeTweeState == 2 {
-			fmt.Printf("[%s] uid[%d] LikeTweet Success \n", time.Now().Local().String(), uid)
-		}
 	}
 	return nil
 }
+
 func PlanLikeTweet(ctx context.Context) error {
 	fmt.Printf("[%s] RunLikeTweet Start\n", time.Now().Local().String())
 	err := runLikeTweet(ctx)
@@ -250,10 +252,19 @@ func runLikeTweet(ctx context.Context) error {
 		uid := user_twitter.UID
 		//like tweet
 		user_twitter.LikeTweeState = 2
-		if err := likeTweet(ctx, user_twitter); err != nil {
+		var err error
+		auth_app_name := user_twitter.AuthAppName
+		if auth_app_name == "" || auth_app_name == defaultAuthAppName {
+			//v2
+			err = likeTweetV2(ctx, user_twitter)
+		} else {
+			//v1
+			err = likeTweetV1(ctx, user_twitter)
+		}
+		if err != nil {
 			fmt.Printf("[%s] uid[%d] Like Tweet Error:%s \n", time.Now().Local().String(), uid, err.Error())
 			user_twitter.LikeTweeState = 3
-			if strings.Contains(err.Error(), "httpStatusCode=401") {
+			if strings.Contains(err.Error(), "httpStatusCode=401") || strings.Contains(err.Error(), "Invalid or expired token") {
 				user_twitter.LikeTweeState = 4
 			}
 			if strings.Contains(err.Error(), "httpStatusCode=429") {
@@ -303,7 +314,7 @@ func runReplyTweet(ctx context.Context) error {
 		if err := replyTweet(ctx, user_twitter, reply); err != nil {
 			fmt.Printf("[%s] uid[%d] Reply Tweet Error:%s \n", time.Now().Local().String(), uid, err.Error())
 			user_twitter.SendTweeState = 3
-			if strings.Contains(err.Error(), "httpStatusCode=401") {
+			if strings.Contains(err.Error(), "httpStatusCode=401") || strings.Contains(err.Error(), "Invalid or expired token") {
 				user_twitter.SendTweeState = 4
 			}
 			if strings.Contains(err.Error(), "httpStatusCode=429") {
@@ -330,18 +341,27 @@ func getReplyText(ctx context.Context, user_twitter *models.UserTwitterAuth) (st
 	return reply, nil
 }
 
+type PlanFollowParams struct {
+	AuthAppName string
+}
+
 //follow twitter
-func FollowTwitter(ctx context.Context) error {
+func FollowTwitter(ctx context.Context, in *PlanFollowParams) error {
 	fmt.Printf("[%s] RunFollowTwitter Start\n", time.Now().Local().String())
-	err := runFollowTwitter(ctx)
+	err := runFollowTwitter(ctx, in)
 	fmt.Printf("[%s] RunFollowTwitter End\n", time.Now().Local().String())
 	return err
 }
 
-func runFollowTwitter(ctx context.Context) error {
+func runFollowTwitter(ctx context.Context, in *PlanFollowParams) error {
+	auth_app_name := defaultAuthAppName
+	if in != nil {
+		auth_app_name = in.AuthAppName
+	}
 	//get list
 	params := &search.UserTwitterAuthSearch{
 		FollowState: 1,
+		AuthAppName: auth_app_name,
 		SortBy:      followerSortOrIDAsc(),
 		ListNum:     int64(followTwitterNum),
 	}
@@ -353,19 +373,28 @@ func runFollowTwitter(ctx context.Context) error {
 	if num <= 0 {
 		return nil
 	}
-	fmt.Printf("[%s] RunFollowTwitter %d \n", time.Now().Local().String(), num)
+	fmt.Printf("[%s] RunFollowTwitter: %d,AuthAppName: %s \n", time.Now().Local().String(), num, auth_app_name)
 	//do list
 	for _, user_twitter := range user_twitter_list {
 		uid := user_twitter.UID
 		//to follow
 		user_twitter.FollowState = 2
-		if err := apiFollowTwitterUser(ctx, user_twitter, targetTwitterId); err != nil {
-			fmt.Printf("[%s] uid[%d],RunFollowTwitter ApiFollowTwitterUser error:%s\n", time.Now().String(), uid, err.Error())
+		var err error
+		auth_app_name := user_twitter.AuthAppName
+		if auth_app_name == "" || auth_app_name == defaultAuthAppName {
+			//v2
+			err = followTwitterUserV2(ctx, user_twitter, targetTwitterId)
+		} else {
+			//v1
+			err = followTwitterUserV1(ctx, user_twitter, targetTwitterId)
+		}
+		if err != nil {
+			fmt.Printf("[%s] uid[%d] AuthAppName[%s] RunFollowTwitter ApiFollowTwitterUser error:%s\n", time.Now().String(), uid, auth_app_name, err.Error())
 			user_twitter.FollowState = 3
-			if strings.Contains(err.Error(), "httpStatusCode=401") {
+			if strings.Contains(err.Error(), "httpStatusCode=401") || strings.Contains(err.Error(), "Invalid or expired token") {
 				user_twitter.FollowState = 4
 			}
-			if strings.Contains(err.Error(), "httpStatusCode=429") {
+			if strings.Contains(err.Error(), "httpStatusCode=429") || strings.Contains(err.Error(), "429") {
 				user_twitter.FollowState = 5
 			}
 		}
@@ -424,7 +453,16 @@ func runCheckTwitterUser(ctx context.Context) error {
 			fmt.Printf("[%s] uid[%d],Error PlanCheckTwitterUser TwitterUser is Null\n", time.Now().String(), uid)
 			continue
 		}
-		followers, err := userFollowers(ctx, user_twitter)
+		var err error
+		var followerUsers []*models.TwitterUser
+		auth_app_name := user_twitter.AuthAppName
+		if auth_app_name == "" || auth_app_name == defaultAuthAppName {
+			//v2
+			followerUsers, err = userFollowersV2(ctx, user_twitter)
+		} else {
+			//v1
+			followerUsers, err = userFollowersV1(ctx, user_twitter)
+		}
 		if err != nil {
 			fmt.Printf("[%s] uid[%d],PlanCheckTwitterUser UserFollowers Error:%s\n", time.Now().String(), uid, err.Error())
 			if strings.Contains(err.Error(), "httpStatusCode=429") {
@@ -434,27 +472,19 @@ func runCheckTwitterUser(ctx context.Context) error {
 			updateUserTwitterAuthTwitterUser(ctx, user_twitter)
 			continue
 		}
-		if followers == nil || len(followers.Data) == 0 {
+		//check followers
+		followersNum := len(followerUsers)
+		if followerUsers == nil || followersNum == 0 {
 			user_twitter.ValidState = 3 //invalid
 			updateUserTwitterAuthTwitterUser(ctx, user_twitter)
 			continue
 		}
-		//check followers
-		followersNum := len(followers.Data)
 		et := time.Now().UTC().AddDate(0, -3, 0)
 		fmt.Printf("[%s] uid[%d],PlanCheckTwitterUser Check ET[%s]\n", time.Now().String(), uid, et.String())
 		var zeroTweetNum, zeroFollowerNum, lowFollowerNum, recentRegisterNum, totalFollowerNum int
-		for _, follower := range followers.Data {
-			followerUser := &models.TwitterUser{
-				TwitterUserId:  *follower.ID,
-				UserName:       *follower.Username,
-				Name:           *follower.Name,
-				CreatedAt:      *follower.CreatedAt,
-				FollowersCount: uint64(*follower.PublicMetrics.FollowersCount),
-				FollowingCount: uint64(*follower.PublicMetrics.FollowingCount),
-				TweetCount:     uint64(*follower.PublicMetrics.TweetCount),
-			}
-			totalFollowerNum += *follower.PublicMetrics.FollowersCount
+		for _, followerUser := range followerUsers {
+
+			totalFollowerNum += int(followerUser.FollowersCount)
 			if followerUser.TweetCount == 0 {
 				zeroTweetNum++
 			}
