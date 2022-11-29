@@ -844,9 +844,13 @@ func userFollowersV1(ctx context.Context, user_twitter *models.UserTwitterAuth) 
 	httpClient := config.Client(oauth1.NoContext, token)
 	client := twitterV1.NewClient(httpClient)
 	user_id, _ := strconv.ParseInt(user_twitter.TwitterUserId, 10, 64)
+	countF := int(env.Envs.FollowsMaxResults)
+	if countF > 200 {
+		countF = 200
+	}
 	params := &twitterV1.FollowerListParams{
 		UserID: user_id,
-		Count:  int(env.Envs.FollowsMaxResults),
+		Count:  countF,
 	}
 	followers, _, err := client.Followers.List(params)
 	if err != nil {

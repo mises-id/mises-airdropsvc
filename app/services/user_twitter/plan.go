@@ -14,7 +14,7 @@ import (
 	"github.com/mises-id/mises-airdropsvc/lib/utils"
 )
 
-const (
+var (
 	lookupUserNum       = 10
 	sendTweetNum        = 3
 	replyTweetNum       = 6
@@ -22,6 +22,12 @@ const (
 	followTwitterNum    = 5
 	checkTwitterUserNum = 5
 )
+
+func init() {
+	sendTweetNum = env.Envs.SendTweetNum
+	followTwitterNum = env.Envs.FollowTwitterNum
+	checkTwitterUserNum = env.Envs.CheckTwitterUserNum
+}
 
 func PlanLookupTwitterUser(ctx context.Context) error {
 	fmt.Printf("[%s] RunLookupTwitterUser Start\n", time.Now().Local().String())
@@ -467,11 +473,11 @@ func runCheckTwitterUser(ctx context.Context) error {
 			followerUsers, err = userFollowersV1(ctx, user_twitter)
 		}
 		if err != nil {
-			fmt.Printf("[%s] uid[%d],PlanCheckTwitterUser UserFollowers Error:%s\n", time.Now().String(), uid, err.Error())
-			if strings.Contains(err.Error(), "httpStatusCode=429") {
-				continue
+			fmt.Printf("[%s] uid[%d] AuthAppName[%s] PlanCheckTwitterUser UserFollowers Error:%s\n", time.Now().String(), uid, auth_app_name, err.Error())
+			user_twitter.ValidState = 6 //check failed
+			if strings.Contains(err.Error(), "httpStatusCode=429") || strings.Contains(err.Error(), "429") {
+				user_twitter.ValidState = 7 //check 429
 			}
-			user_twitter.ValidState = 3 //invalid
 			updateUserTwitterAuthTwitterUser(ctx, user_twitter)
 			continue
 		}

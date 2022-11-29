@@ -41,6 +41,9 @@ type Env struct {
 	MinCheckFollowers           uint64   `env:"MinCheckFollowers" envDefault:"350"`
 	MaxCheckFollowers           uint64   `env:"MaxCheckFollowers" envDefault:"10000"`
 	FollowsMaxResults           uint64   `env:"FollowsMaxResults" envDefault:"50"`
+	SendTweetNum                int      `env:"SendTweetNum" envDefault:"3"`
+	CheckTwitterUserNum         int      `env:"CheckTwitterUserNum" envDefault:"5"`
+	FollowTwitterNum            int      `env:"FollowTwitterNum" envDefault:"5"`
 	RootPath                    string
 }
 
