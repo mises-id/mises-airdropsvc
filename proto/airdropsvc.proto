@@ -246,13 +246,13 @@ message AirdropChannelResponse {
   
 }
 message TwitterFollowRequest {
-  
+  string name = 1;
 }
 message TwitterFollowResponse {
   uint64 code = 1;
 }
 message SendTweetRequest {
-  
+  string name = 1;
 }
 message SendTweetResponse {
   uint64 code = 1;

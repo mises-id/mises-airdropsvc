@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"context"
-	"strconv"
-	"strings"
 
 	"github.com/mises-id/mises-airdropsvc/app/factory"
 	"github.com/mises-id/mises-airdropsvc/app/models"
@@ -118,6 +116,7 @@ func (s airdropsvcService) TwitterCallback(ctx context.Context, in *pb.TwitterCa
 	params := &user_twitter.CallbackParams{
 		OauthToken:    in.OauthToken,
 		OauthVerifier: in.OauthVerifier,
+		State:         in.State,
 	}
 	if in.UserAgent != nil {
 		user_agent := &models.UserAgent{
@@ -130,18 +129,7 @@ func (s airdropsvcService) TwitterCallback(ctx context.Context, in *pb.TwitterCa
 		}
 		params.UserAgent = user_agent
 	}
-	if in.State != "" {
-		stateArr := strings.Split(in.State, user_twitter.CallbackStateFlag)
-		if len(stateArr) == 2 {
-			uid, _ := strconv.ParseUint(stateArr[0], 10, 64)
-			in.CurrentUid = uid
-			device_id := stateArr[1]
-			if params.UserAgent != nil {
-				params.UserAgent.DeviceId = device_id
-			}
-		}
-	}
-	url := user_twitter.TwitterCallback(ctx, in.CurrentUid, params)
+	url := user_twitter.TwitterCallback(ctx, params)
 	resp.Code = 0
 	resp.Url = url
 	return &resp, nil
@@ -169,7 +157,10 @@ func (s airdropsvcService) GetChannelUser(ctx context.Context, in *pb.GetChannel
 
 func (s airdropsvcService) TwitterFollow(ctx context.Context, in *pb.TwitterFollowRequest) (*pb.TwitterFollowResponse, error) {
 	var resp pb.TwitterFollowResponse
-	err := user_twitter.FollowTwitter(ctx)
+	params := &user_twitter.PlanFollowParams{
+		AuthAppName: in.Name,
+	}
+	err := user_twitter.FollowTwitter(ctx, params)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +180,10 @@ func (s airdropsvcService) LookupTwitter(ctx context.Context, in *pb.LookupTwitt
 
 func (s airdropsvcService) SendTweet(ctx context.Context, in *pb.SendTweetRequest) (*pb.SendTweetResponse, error) {
 	var resp pb.SendTweetResponse
-	err := user_twitter.PlanSendTweet(ctx)
+	params := &user_twitter.PlanSendTweetParams{
+		AuthAppName: in.Name,
+	}
+	err := user_twitter.PlanSendTweet(ctx, params)
 	if err != nil {
 		return nil, err
 	}

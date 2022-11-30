@@ -68,6 +68,7 @@ type (
 		CheckState           string             `bson:"-"`
 		InvalidCode          string             `bson:"-"`
 		Reason               string             `bson:"-"`
+		AuthAppName          string             `bson:"auth_app_name"`
 	}
 )
 
@@ -84,6 +85,7 @@ func CreateUserTwitterAuth(ctx context.Context, data *UserTwitterAuth) error {
 	created["oauth_token_secret"] = data.OauthTokenSecret
 	created["find_twitter_user_state"] = data.FindTwitterUserState
 	created["user_agent"] = data.UserAgent
+	created["auth_app_name"] = data.AuthAppName
 	opt := &options.FindOneAndUpdateOptions{}
 	opt.SetUpsert(true)
 	opt.SetReturnDocument(1)
