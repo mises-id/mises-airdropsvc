@@ -215,7 +215,7 @@ func runSendTweet(ctx context.Context, in *PlanSendTweetParams) error {
 			if strings.Contains(err.Error(), "httpStatusCode=401") || strings.Contains(err.Error(), "Invalid or expired token") {
 				user_twitter.SendTweeState = 4
 			}
-			if strings.Contains(err.Error(), "httpStatusCode=429") {
+			if strings.Contains(err.Error(), "httpStatusCode=429") || strings.Contains(err.Error(), "Over capacity") {
 				user_twitter.SendTweeState = 5
 			}
 		}
@@ -273,7 +273,7 @@ func runLikeTweet(ctx context.Context) error {
 			if strings.Contains(err.Error(), "httpStatusCode=401") || strings.Contains(err.Error(), "Invalid or expired token") {
 				user_twitter.LikeTweeState = 4
 			}
-			if strings.Contains(err.Error(), "httpStatusCode=429") {
+			if strings.Contains(err.Error(), "httpStatusCode=429") || strings.Contains(err.Error(), "Over capacity") {
 				user_twitter.LikeTweeState = 5
 			}
 			if strings.Contains(err.Error(), "You have already") {
@@ -326,7 +326,7 @@ func runReplyTweet(ctx context.Context) error {
 			if strings.Contains(err.Error(), "httpStatusCode=401") || strings.Contains(err.Error(), "Invalid or expired token") {
 				user_twitter.SendTweeState = 4
 			}
-			if strings.Contains(err.Error(), "httpStatusCode=429") {
+			if strings.Contains(err.Error(), "httpStatusCode=429") || strings.Contains(err.Error(), "Over capacity") {
 				user_twitter.SendTweeState = 5
 			}
 		}
@@ -403,7 +403,7 @@ func runFollowTwitter(ctx context.Context, in *PlanFollowParams) error {
 			if strings.Contains(err.Error(), "httpStatusCode=401") || strings.Contains(err.Error(), "Invalid or expired token") {
 				user_twitter.FollowState = 4
 			}
-			if strings.Contains(err.Error(), "httpStatusCode=429") || strings.Contains(err.Error(), "429") {
+			if strings.Contains(err.Error(), "httpStatusCode=429") || strings.Contains(err.Error(), "Over capacity") {
 				user_twitter.FollowState = 5
 			}
 		}
@@ -475,7 +475,7 @@ func runCheckTwitterUser(ctx context.Context) error {
 		if err != nil {
 			fmt.Printf("[%s] uid[%d] AuthAppName[%s] PlanCheckTwitterUser UserFollowers Error:%s\n", time.Now().String(), uid, auth_app_name, err.Error())
 			user_twitter.ValidState = 6 //check failed
-			if strings.Contains(err.Error(), "httpStatusCode=429") || strings.Contains(err.Error(), "429") {
+			if strings.Contains(err.Error(), "httpStatusCode=429") || strings.Contains(err.Error(), "Over capacity") {
 				user_twitter.ValidState = 7 //check 429
 			}
 			updateUserTwitterAuthTwitterUser(ctx, user_twitter)
