@@ -291,6 +291,9 @@ func GetTwitterAirdropCoin(ctx context.Context, userTwitter *models.UserTwitterA
 		/* if userTwitter.CheckResult.TotalFollowerNum >= 1000*checkNum {
 			score = 100
 		} */
+		if checkNum < 180 {
+			score = 1
+		}
 	}
 	if userTwitter.UserAgent != nil && userTwitter.UserAgent.DeviceId != "" && userTwitter.DeviceIdNum > 1 {
 		score = 1
