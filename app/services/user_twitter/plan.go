@@ -406,6 +406,9 @@ func runFollowTwitter(ctx context.Context, in *PlanFollowParams) error {
 			if strings.Contains(err.Error(), "httpStatusCode=429") || strings.Contains(err.Error(), "Over capacity") {
 				user_twitter.FollowState = 5
 			}
+			if strings.Contains(err.Error(), "You are unable to follow more people at this time") {
+				user_twitter.FollowState = 5
+			}
 		}
 		if err = models.UpdateUserTwitterAuthFollow(ctx, user_twitter); err != nil {
 			fmt.Printf("[%s] uid[%d],RunFollowTwitter UpdateUserTwitterAuthFollow Error:%s\n", time.Now().String(), uid, err.Error())
