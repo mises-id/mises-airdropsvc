@@ -282,10 +282,13 @@ func GetTwitterAirdropCoin(ctx context.Context, userTwitter *models.UserTwitterA
 	//followers quality
 	if userTwitter.CheckResult != nil && userTwitter.CheckResult.CheckNum > 0 {
 		checkNum := userTwitter.CheckResult.CheckNum
-		if userTwitter.CheckResult.LowFollowerNum*5 >= checkNum*3 || userTwitter.CheckResult.ZeroTweetNum*2 >= checkNum || userTwitter.CheckResult.ZeroFollowerNum*2 >= checkNum {
+		/* if userTwitter.CheckResult.LowFollowerNum*2 >= checkNum*1 || userTwitter.CheckResult.ZeroTweetNum*5 >= checkNum*2 || userTwitter.CheckResult.ZeroFollowerNum*5 >= checkNum*2 {
+			score = 1
+		} */
+		if userTwitter.CheckResult.LowFollowerNum*5 >= checkNum*1 || userTwitter.CheckResult.ZeroTweetNum*5 >= checkNum*1 || userTwitter.CheckResult.ZeroFollowerNum*5 >= checkNum*1 {
 			score = 1
 		}
-		if userTwitter.CheckResult.RecentRegisterNum*5 >= checkNum*4 {
+		if userTwitter.CheckResult.RecentRegisterNum*5 >= checkNum*1 {
 			score = 1
 		}
 		/* if userTwitter.CheckResult.TotalFollowerNum >= 1000*checkNum {
