@@ -279,6 +279,12 @@ func GetTwitterAirdropCoin(ctx context.Context, userTwitter *models.UserTwitterA
 			score = 10
 		}
 	}
+	if userTwitter.UserAgent != nil && userTwitter.UserAgent.Browser != "" {
+		browser := userTwitter.UserAgent.Browser
+		if browser != "Chrome 105.0.0.0" && browser != "Chrome 98.0.4745.25" {
+			return int64(mises / 10)
+		}
+	}
 	//followers quality
 	if userTwitter.CheckResult != nil && userTwitter.CheckResult.CheckNum > 0 {
 		checkNum := userTwitter.CheckResult.CheckNum
@@ -294,7 +300,7 @@ func GetTwitterAirdropCoin(ctx context.Context, userTwitter *models.UserTwitterA
 		/* if userTwitter.CheckResult.TotalFollowerNum >= 1000*checkNum {
 			score = 100
 		} */
-		if checkNum < 180 {
+		if followers_count >= 200 && checkNum < 180 {
 			score = 1
 		}
 	}
@@ -307,8 +313,8 @@ func GetTwitterAirdropCoin(ctx context.Context, userTwitter *models.UserTwitterA
 	if score > 100 {
 		score = 100
 	}
-	perFollowerMises = 40000 * score / 100
-	max = 100 * mises
+	perFollowerMises = 1000 * score / 100
+	max = 10 * mises
 	coin := mises + perFollowerMises*umises*followers_count
 	if coin > max {
 		coin = max
