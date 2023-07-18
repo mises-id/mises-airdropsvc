@@ -39,7 +39,7 @@ type (
 	}
 )
 
-//channel info
+// channel info
 func ChannelInfo(ctx context.Context, in *ChannelUrlInput) (*ChannelUrlOutput, error) {
 
 	out := &ChannelUrlOutput{}
@@ -73,7 +73,7 @@ func ChannelInfo(ctx context.Context, in *ChannelUrlInput) (*ChannelUrlOutput, e
 	return out, nil
 }
 
-//get channel airdrop amount
+// get channel airdrop amount
 func getChannelAirdropAmount(ctx context.Context, uid uint64) float64 {
 	var mises float64
 	user_ext, err := socialModel.FindOrCreateUserExt(ctx, uid)
@@ -86,7 +86,7 @@ func getChannelAirdropAmount(ctx context.Context, uid uint64) float64 {
 	return mises
 }
 
-//count channel user
+// count channel user
 func countChannelTotalUser(ctx context.Context, channel_id primitive.ObjectID) uint64 {
 
 	params := &search.ChannelUserSearch{
@@ -99,7 +99,7 @@ func countChannelTotalUser(ctx context.Context, channel_id primitive.ObjectID) u
 	return uint64(c)
 }
 
-//get channel url
+// get channel url
 func getChannelUrl(ctx context.Context, ch *models.ChannelList, medium string) string {
 
 	appid := env.Envs.GooglePlayAppID
@@ -114,12 +114,11 @@ func getChannelUrl(ctx context.Context, ch *models.ChannelList, medium string) s
 func getChannelIosLink(ctx context.Context, ch *models.ChannelList, medium string) string {
 	appid := env.Envs.GooglePlayAppID
 	appStoreID := env.Envs.AppStoreID
-	iosID := "site.mises.browser.ios"
+	iosID := "site.mises.browser"
 	referrer := "utm_source=" + utils.AddChannelUrlProfix(ch.ID.Hex())
-	ifl := "https://testflight.apple.com/join/Tk1BxD1i"
 	if medium != "" {
 		referrer += "&utm_medium=" + medium
 	}
 	baseLink := "https://mises.page.link/?link=https://home.mises.site"
-	return fmt.Sprintf("%s/&apn=%s&isi=%s&ibi=%s&ifl=%s&%s", baseLink, appid, appStoreID, iosID, ifl, referrer)
+	return fmt.Sprintf("%s/&apn=%s&isi=%s&ibi=%s&%s", baseLink, appid, appStoreID, iosID, referrer)
 }
